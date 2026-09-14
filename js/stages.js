@@ -63,6 +63,66 @@ const CITY_LAYOUT = {
   ],
 };
 
+// ---- ステージ3: サイバーシティ ナイト ----
+// タイル配置・接続はCITY_LAYOUTと全く同じ形(実測済みの回転値をそのまま使い回し、
+// タイルの繋がりに関する不具合を再発させないため)。地面色・夜空・建物だけを
+// Quaternius "Cyberpunk Game Kit"(CC0)のネオン看板/アンテナ/TV等に差し替えている。
+const CYBER_LAYOUT = {
+  groundColor: 0x24243a,
+  groundRadius: 8,
+  groundCenter: [4, 3.5],
+  roadWidthRatio: 0.5,
+  tiles: [
+    { type: 'road-curve-pavement', gx: 1, gz: 1, rotDeg: 90 },
+    { type: 'road-curve-pavement', gx: 7, gz: 1, rotDeg: 0 },
+    { type: 'road-curve-pavement', gx: 7, gz: 6, rotDeg: 270 },
+    { type: 'road-curve-pavement', gx: 1, gz: 6, rotDeg: 180 },
+    { type: 'road-straight', gx: 2.5, gz: 0.513, rotDeg: 180 },
+    { type: 'road-straight', gx: 3.5, gz: 0.513, rotDeg: 180 },
+    { type: 'road-straight', gx: 4.5, gz: 0.513, rotDeg: 180 },
+    { type: 'road-straight', gx: 5.5, gz: 0.513, rotDeg: 180 },
+    { type: 'road-straight', gx: 7.487, gz: 2.5, rotDeg: 90 },
+    { type: 'road-straight', gx: 7.487, gz: 3.5, rotDeg: 90 },
+    { type: 'road-straight', gx: 7.487, gz: 4.5, rotDeg: 90 },
+    { type: 'road-straight', gx: 2.5, gz: 6.487, rotDeg: 180 },
+    { type: 'road-straight', gx: 3.5, gz: 6.487, rotDeg: 180 },
+    { type: 'road-straight', gx: 4.5, gz: 6.487, rotDeg: 180 },
+    { type: 'road-straight', gx: 5.5, gz: 6.487, rotDeg: 180 },
+    { type: 'road-straight', gx: 0.513, gz: 2.5, rotDeg: 90 },
+    { type: 'road-straight', gx: 0.513, gz: 3.5, rotDeg: 90 },
+    { type: 'road-straight', gx: 0.513, gz: 4.5, rotDeg: 90 },
+  ],
+  path: [
+    [1, 1], [2, 0.513], [6, 0.513],
+    [7, 1], [7.487, 2], [7.487, 5],
+    [7, 6], [6, 6.487], [2, 6.487],
+    [1, 6], [0.513, 5], [0.513, 2],
+  ],
+  buildings: [
+    // 四隅にひときわ目立つ大型ビジョン
+    { type: 'cyberpunk/tv-1.gltf', gx: -1.3, gz: -0.8, rotDeg: 35, scale: 1.1, glowIntensity: 1.4 },
+    { type: 'cyberpunk/tv-1.gltf', gx: 9.3, gz: -0.8, rotDeg: -35, scale: 1.1, glowIntensity: 1.4 },
+    { type: 'cyberpunk/tv-1.gltf', gx: -1.3, gz: 7.8, rotDeg: -35, scale: 1.1, glowIntensity: 1.4 },
+    { type: 'cyberpunk/tv-1.gltf', gx: 9.3, gz: 7.8, rotDeg: 35, scale: 1.1, glowIntensity: 1.4 },
+    // 上辺沿い
+    { type: 'cyberpunk/sign-1.gltf', gx: 2.2, gz: -1.0, rotDeg: 0, scale: 0.9 },
+    { type: 'cyberpunk/light-street-1.gltf', gx: 3.6, gz: -0.9, rotDeg: 0, scale: 1 },
+    { type: 'cyberpunk/antenna-1.gltf', gx: 4.6, gz: -0.9, rotDeg: 0, scale: 1 },
+    { type: 'cyberpunk/sign-corner-hazard.gltf', gx: 6.0, gz: -1.0, rotDeg: 10, scale: 0.9 },
+    // 下辺沿い
+    { type: 'cyberpunk/sign-1.gltf', gx: 2.2, gz: 7.9, rotDeg: 180, scale: 0.9 },
+    { type: 'cyberpunk/light-street-2.gltf', gx: 3.6, gz: 8.0, rotDeg: 180, scale: 1 },
+    { type: 'cyberpunk/antenna-2.gltf', gx: 4.6, gz: 8.0, rotDeg: 180, scale: 1 },
+    { type: 'cyberpunk/ac-stacked.gltf', gx: 6.0, gz: 7.9, rotDeg: 180, scale: 0.9 },
+    // 左辺沿い
+    { type: 'cyberpunk/light-street-1.gltf', gx: -0.9, gz: 2.2, rotDeg: 90, scale: 1 },
+    { type: 'cyberpunk/sign-1.gltf', gx: -1.0, gz: 4.0, rotDeg: 90, scale: 0.9 },
+    // 右辺沿い
+    { type: 'cyberpunk/light-street-2.gltf', gx: 8.4, gz: 2.2, rotDeg: -90, scale: 1 },
+    { type: 'cyberpunk/ac-stacked.gltf', gx: 8.5, gz: 4.0, rotDeg: -90, scale: 0.9 },
+  ],
+};
+
 export const STAGES = [
   {
     id: 'grassland',
@@ -84,6 +144,27 @@ export const STAGES = [
     worldScale: 0.24,
     layout: CITY_LAYOUT,
     npcIds: ['vehicle-suv', 'vehicle-truck', 'vehicle-monster-truck', 'vehicle-racer', 'vehicle-speedster'],
+  },
+  {
+    id: 'cyber',
+    name: 'サイバーシティ ナイト',
+    emoji: '🌃',
+    description: 'ネオンひかる よるの まち。ひかる かんばんに ちゅうい！',
+    trackType: 'tile',
+    carSet: 'toy',
+    worldScale: 0.24,
+    layout: CYBER_LAYOUT,
+    npcIds: ['vehicle-suv', 'vehicle-truck', 'vehicle-racer', 'vehicle-speedster', 'vehicle-monster-truck'],
+    theme: {
+      sky: 0x0d0221,
+      fogNear: 30,
+      fogFar: 140,
+      hemiSky: 0x5b6dff,
+      hemiGround: 0x1a0a2e,
+      hemiIntensity: 0.55,
+      sunColor: 0x8899ff,
+      sunIntensity: 0.5,
+    },
   },
 ];
 

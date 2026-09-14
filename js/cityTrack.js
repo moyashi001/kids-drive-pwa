@@ -39,7 +39,25 @@ function loadTile(type) {
 }
 
 function loadBuilding(type) {
-  return loadModel(`assets/models/buildings/${type}.glb`);
+  // "cyberpunk/xxx" のように拡張子付きのtypeを渡された場合はそのまま使う(Quaternius製の
+  // .gltfをbuildingsフォルダのサブディレクトリに置いているため)。それ以外は従来通り.glb。
+  const path = type.endsWith('.gltf') ? type : `${type}.glb`;
+  return loadModel(`assets/models/buildings/${path}`);
+}
+
+// サイバーパンク調のネオン看板/機材はテクスチャ色をそのまま自発光させることで、
+// 夜のステージで光っているように見せる(Quaternius素材はemissiveを持たないベタ色PBRのため)。
+function applyEmissiveGlow(scene, intensity) {
+  scene.traverse(obj => {
+    if (!obj.isMesh || !obj.material) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    for (const mat of mats) {
+      if (!mat.isMeshStandardMaterial) continue;
+      mat.emissive = mat.map ? new THREE.Color(0xffffff) : mat.color.clone();
+      mat.emissiveMap = mat.map || null;
+      mat.emissiveIntensity = intensity;
+    }
+  });
 }
 
 /**
@@ -92,6 +110,7 @@ export async function createCityTrack(def) {
     mesh.position.set(b.gx * TILE_SCALE, 0, b.gz * TILE_SCALE);
     mesh.rotation.y = THREE.MathUtils.degToRad(b.rotDeg || 0);
     mesh.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+    if (b.type.startsWith('cyberpunk/')) applyEmissiveGlow(mesh, b.glowIntensity || 1.1);
     decorGroup.add(mesh);
   }
 

@@ -136,6 +136,7 @@ function preloadPreviews(onProgress) {
 
 // ---------- Three.js セットアップ ----------
 let renderer, scene, camera;
+let hemiLight, sunLight;
 let track;
 let trackDirty = true; // ステージが変わったらtrackを作り直す必要がある
 let carController = null;
@@ -156,26 +157,45 @@ function initScene() {
 
   camera = new THREE.PerspectiveCamera(60, 1, 0.1, 500);
 
-  const hemi = new THREE.HemisphereLight(0xffffff, 0x6a9e39, 0.9);
-  scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffffff, 1.1);
-  sun.position.set(60, 90, 40);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
-  sun.shadow.camera.left = -120;
-  sun.shadow.camera.right = 120;
-  sun.shadow.camera.top = 120;
-  sun.shadow.camera.bottom = -120;
-  sun.shadow.camera.far = 250;
-  scene.add(sun);
+  hemiLight = new THREE.HemisphereLight(0xffffff, 0x6a9e39, 0.9);
+  scene.add(hemiLight);
+  sunLight = new THREE.DirectionalLight(0xffffff, 1.1);
+  sunLight.position.set(60, 90, 40);
+  sunLight.castShadow = true;
+  sunLight.shadow.mapSize.set(1024, 1024);
+  sunLight.shadow.camera.left = -120;
+  sunLight.shadow.camera.right = 120;
+  sunLight.shadow.camera.top = 120;
+  sunLight.shadow.camera.bottom = -120;
+  sunLight.shadow.camera.far = 250;
+  scene.add(sunLight);
 
   window.addEventListener('resize', onResize);
   onResize();
 }
 
+// 昼の草原/街コース向けの既定の空気感。ステージ側でthemeを指定しない場合はこれを使う
+const DEFAULT_THEME = {
+  sky: 0x8fd4f8, fogNear: 120, fogFar: 220,
+  hemiSky: 0xffffff, hemiGround: 0x6a9e39, hemiIntensity: 0.9,
+  sunColor: 0xffffff, sunIntensity: 1.1,
+};
+
+function applyStageTheme(stage) {
+  const theme = stage.theme || DEFAULT_THEME;
+  scene.background = new THREE.Color(theme.sky);
+  scene.fog = new THREE.Fog(theme.sky, theme.fogNear, theme.fogFar);
+  hemiLight.color.set(theme.hemiSky);
+  hemiLight.groundColor.set(theme.hemiGround);
+  hemiLight.intensity = theme.hemiIntensity;
+  sunLight.color.set(theme.sunColor);
+  sunLight.intensity = theme.sunIntensity;
+}
+
 async function ensureTrack() {
   if (!trackDirty && track) return;
   if (track) scene.remove(track.group);
+  applyStageTheme(currentStage);
   track = currentStage.trackType === 'tile'
     ? await createCityTrack(currentStage.layout)
     : createTrack();

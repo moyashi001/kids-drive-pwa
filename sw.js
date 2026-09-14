@@ -1,5 +1,5 @@
 // キャッシュを更新する際はこのバージョン文字列を必ずインクリメントすること
-const VERSION = 'v15';
+const VERSION = 'v16';
 const CACHE_NAME = `kids-drive-pwa-${VERSION}`;
 
 const CAR_IDS = [
@@ -20,6 +20,11 @@ const ROAD_TILE_IDS = ['road-straight', 'road-curve-pavement'];
 const BUILDING_IDS = [
   'building-a', 'building-b', 'building-c', 'building-d', 'building-e', 'building-f',
   'building-h', 'building-k',
+];
+
+const CYBERPUNK_DECOR_IDS = [
+  'sign-1', 'sign-corner-hazard', 'light-street-1', 'light-street-2',
+  'antenna-1', 'antenna-2', 'tv-1', 'ac-stacked',
 ];
 
 const CORE_ASSETS = [
@@ -54,6 +59,7 @@ const CORE_ASSETS = [
   ...TOY_CAR_IDS.map(id => `assets/previews/toycars/${id}.png`),
   ...ROAD_TILE_IDS.map(id => `assets/models/roadtiles/${id}.glb`),
   ...BUILDING_IDS.map(id => `assets/models/buildings/${id}.glb`),
+  ...CYBERPUNK_DECOR_IDS.map(id => `assets/models/buildings/cyberpunk/${id}.gltf`),
 ];
 
 self.addEventListener('install', event => {
