@@ -65,7 +65,12 @@ export async function createCityTrack(def) {
     mesh.scale.setScalar(TILE_SCALE * (t.scale || 1));
     mesh.position.set(t.gx * TILE_SCALE, 0, t.gz * TILE_SCALE);
     mesh.rotation.y = THREE.MathUtils.degToRad(t.rotDeg || 0);
-    mesh.traverse(o => { if (o.isMesh) { o.receiveShadow = true; o.castShadow = false; } });
+    // receiveShadow=falseにしている理由: sun(DirectionalLight)のshadow cameraは
+    // 草原ステージ(±120の広い範囲)向けに設定されており、まちなかステージの
+    // 小さなタイル(1マス6ユニット)に対しては1px相当のワールド距離が粗すぎ、
+    // シャドウアクネ(縞模様のノイズ)が道路面に出てしまう。実害の大きい
+    // ノイズを避けるため、タイル面では影を受けないようにする。
+    mesh.traverse(o => { if (o.isMesh) { o.receiveShadow = false; o.castShadow = false; } });
     roadGroup.add(mesh);
   }
 
@@ -76,7 +81,7 @@ export async function createCityTrack(def) {
   const ground = new THREE.Mesh(groundGeo, groundMat);
   ground.rotation.x = -Math.PI / 2;
   ground.position.set(def.groundCenter ? def.groundCenter[0] * TILE_SCALE : 0, -0.02, def.groundCenter ? def.groundCenter[1] * TILE_SCALE : 0);
-  ground.receiveShadow = true;
+  ground.receiveShadow = false;
   group.add(ground);
 
   const decorGroup = new THREE.Group();
@@ -86,7 +91,7 @@ export async function createCityTrack(def) {
     mesh.scale.setScalar(TILE_SCALE * (b.scale || 1));
     mesh.position.set(b.gx * TILE_SCALE, 0, b.gz * TILE_SCALE);
     mesh.rotation.y = THREE.MathUtils.degToRad(b.rotDeg || 0);
-    mesh.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    mesh.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
     decorGroup.add(mesh);
   }
 

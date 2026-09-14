@@ -16,11 +16,14 @@ const CITY_LAYOUT = {
   groundCenter: [4, 3.5],
   roadWidthRatio: 0.5,
   tiles: [
-    // 四隅のカーブ(2x2)
-    { type: 'road-curve-pavement', gx: 1, gz: 1, rotDeg: 90, scale: 2 },
-    { type: 'road-curve-pavement', gx: 7, gz: 1, rotDeg: 0, scale: 2 },
-    { type: 'road-curve-pavement', gx: 7, gz: 6, rotDeg: 270, scale: 2 },
-    { type: 'road-curve-pavement', gx: 1, gz: 6, rotDeg: 180, scale: 2 },
+    // 四隅のカーブ(road-curve-pavementはモデル自体が既に2x2タイル分のサイズなので、
+    // 他のタイルと同じ TILE_SCALE 倍のままでよい。ここに scale:2 を追加すると
+    // 二重にスケールがかかりモデルが4倍(4タイル分)の大きさになってしまい、
+    // 隣接タイルと重なってZ-fighting(縞模様のノイズ)の原因になっていた)
+    { type: 'road-curve-pavement', gx: 1, gz: 1, rotDeg: 90 },
+    { type: 'road-curve-pavement', gx: 7, gz: 1, rotDeg: 0 },
+    { type: 'road-curve-pavement', gx: 7, gz: 6, rotDeg: 270 },
+    { type: 'road-curve-pavement', gx: 1, gz: 6, rotDeg: 180 },
     // 上辺 (z=0.513)
     { type: 'road-straight', gx: 2.5, gz: 0.513, rotDeg: 90 },
     { type: 'road-straight', gx: 3.5, gz: 0.513, rotDeg: 90 },
