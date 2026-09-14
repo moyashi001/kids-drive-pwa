@@ -332,6 +332,7 @@ async function startGame(carId) {
   carController = new CarController(modelScene, carMeta, currentStage.worldScale || 1);
   carController.setPosition(track.startPosition, track.startAngle);
   scene.add(carController.group);
+  cameraSnapPending = true; // 前回のカメラ位置から滑らかに動くのではなく、開始位置に即座に合わせる
 
   setAutoMode(false, true);
   setupTouchControls();
@@ -378,6 +379,21 @@ document.getElementById('mode-btn').addEventListener('click', () => {
 document.getElementById('sound-btn').addEventListener('click', () => {
   setSoundEnabled(!soundOn);
 });
+
+// ---------- カメラ視点切り替え ----------
+const CAMERA_MODES = ['follow', 'top', 'front'];
+const CAMERA_MODE_ICON = { follow: '🎥', top: '🛰️', front: '🚙' };
+let cameraMode = 'follow';
+let cameraSnapPending = false; // 切替直後は1フレームだけ即座にカメラを合わせる(ふわっと動くのを防ぐ)
+
+function cycleCameraMode() {
+  const idx = CAMERA_MODES.indexOf(cameraMode);
+  cameraMode = CAMERA_MODES[(idx + 1) % CAMERA_MODES.length];
+  cameraSnapPending = true;
+  document.getElementById('camera-icon').textContent = CAMERA_MODE_ICON[cameraMode];
+}
+
+document.getElementById('camera-btn').addEventListener('click', cycleCameraMode);
 
 // ---------- NPC車(コース上を自動走行し、ぶつかると爆発する) ----------
 const COLLISION_DIST_BY_TYPE = { spline: 2.4, tile: 3.2 };
@@ -516,8 +532,8 @@ function updateNpcs(dt) {
 // toy-car-kitの車はKenney Car Kitの車の1/3ほどのサイズなので、
 // カメラの追従距離・注視点オフセットもcarSetに応じて縮める
 const CAMERA_RIG_BY_CAR_SET = {
-  kenney: { back: 9, up: 4.5, lookUp: 1.2, lookAhead: 3 },
-  toy: { back: 3.2, up: 1.7, lookUp: 0.5, lookAhead: 1.2 },
+  kenney: { back: 9, up: 4.5, lookUp: 1.2, lookAhead: 3, topHeight: 30 },
+  toy: { back: 3.2, up: 1.7, lookUp: 0.5, lookAhead: 1.2, topHeight: 12 },
 };
 const camOffset = new THREE.Vector3();
 const camTarget = new THREE.Vector3();
@@ -528,12 +544,41 @@ function updateCamera(dt) {
   const forward = carController.forwardVector();
   const carPos = carController.group.position;
   const rig = CAMERA_RIG_BY_CAR_SET[currentStage.carSet] || CAMERA_RIG_BY_CAR_SET.kenney;
+  // 切替直後はlerpをかけず即座にカメラを合わせる(ふわっと移動する違和感を防ぐ)
+  const lerpT = cameraSnapPending ? 1 : Math.min(1, dt * 4);
+  cameraSnapPending = false;
 
+  if (cameraMode === 'top') updateCameraTop(carPos, rig, lerpT);
+  else if (cameraMode === 'front') updateCameraFront(carPos, forward, rig, lerpT);
+  else updateCameraFollow(carPos, forward, rig, lerpT);
+}
+
+function updateCameraFollow(carPos, forward, rig, lerpT) {
+  camera.up.set(0, 1, 0);
   camOffset.copy(forward).multiplyScalar(-rig.back).add(new THREE.Vector3(0, rig.up, 0));
   camTarget.copy(carPos).add(camOffset);
-  camera.position.lerp(camTarget, Math.min(1, dt * 4));
+  camera.position.lerp(camTarget, lerpT);
 
   lookTarget.copy(carPos).add(new THREE.Vector3(0, rig.lookUp, 0)).addScaledVector(forward, rig.lookAhead);
+  camera.lookAt(lookTarget);
+}
+
+function updateCameraTop(carPos, rig, lerpT) {
+  // 真上から見下ろす視点。up を進行方向の目安(-Z)にしておかないとlookAtで映像が回転してしまう
+  camera.up.set(0, 0, -1);
+  camTarget.copy(carPos).add(new THREE.Vector3(0, rig.topHeight, 0));
+  camera.position.lerp(camTarget, lerpT);
+  camera.lookAt(carPos);
+}
+
+function updateCameraFront(carPos, forward, rig, lerpT) {
+  // 車の進行方向側にカメラを回り込ませ、車を正面から見返す視点
+  camera.up.set(0, 1, 0);
+  camOffset.copy(forward).multiplyScalar(rig.back * 0.9).add(new THREE.Vector3(0, rig.up * 0.7, 0));
+  camTarget.copy(carPos).add(camOffset);
+  camera.position.lerp(camTarget, lerpT);
+
+  lookTarget.copy(carPos).add(new THREE.Vector3(0, rig.lookUp, 0));
   camera.lookAt(lookTarget);
 }
 

@@ -251,6 +251,7 @@ html, body {
 .hud-button:active { transform: translateY(2px); box-shadow: none; }
 .mode-manual { background: #fff59d; }
 .mode-auto { background: #a5d6a7; }
+.camera-btn { background: #90caf9; }
 
 .car-name-badge {
   flex: 1;
@@ -352,4 +353,11 @@ html, body {
 
 @media (min-width: 900px) {
   .car-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}
+
+/* 視点切替ボタン追加によりhud-topが5要素になったため、幅の狭い端末では
+   ボタンを少し縮めてcar-name-badgeの表示スペースを確保する */
+@media (max-width: 400px) {
+  .hud-top { gap: 6px; }
+  .hud-button { width: 46px; height: 46px; font-size: 20px; }
 }
