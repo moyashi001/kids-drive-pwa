@@ -25,23 +25,25 @@ const CITY_LAYOUT = {
     { type: 'road-curve-pavement', gx: 7, gz: 6, rotDeg: 270 },
     { type: 'road-curve-pavement', gx: 1, gz: 6, rotDeg: 180 },
     // 上辺 (z=0.513)
-    { type: 'road-straight', gx: 2.5, gz: 0.513, rotDeg: 90 },
-    { type: 'road-straight', gx: 3.5, gz: 0.513, rotDeg: 90 },
-    { type: 'road-straight', gx: 4.5, gz: 0.513, rotDeg: 90 },
-    { type: 'road-straight', gx: 5.5, gz: 0.513, rotDeg: 90 },
+    // road-straightは既定(rotDeg:0)で歩道が進行方向と垂直(左右ではなく前後の端)に
+    // つく向きのモデルのため、道の向きに合わせるには従来の想定と90度ずらす必要がある
+    { type: 'road-straight', gx: 2.5, gz: 0.513, rotDeg: 180 },
+    { type: 'road-straight', gx: 3.5, gz: 0.513, rotDeg: 180 },
+    { type: 'road-straight', gx: 4.5, gz: 0.513, rotDeg: 180 },
+    { type: 'road-straight', gx: 5.5, gz: 0.513, rotDeg: 180 },
     // 右辺 (x=7.487)
-    { type: 'road-straight', gx: 7.487, gz: 2.5, rotDeg: 0 },
-    { type: 'road-straight', gx: 7.487, gz: 3.5, rotDeg: 0 },
-    { type: 'road-straight', gx: 7.487, gz: 4.5, rotDeg: 0 },
+    { type: 'road-straight', gx: 7.487, gz: 2.5, rotDeg: 90 },
+    { type: 'road-straight', gx: 7.487, gz: 3.5, rotDeg: 90 },
+    { type: 'road-straight', gx: 7.487, gz: 4.5, rotDeg: 90 },
     // 下辺 (z=6.487)
-    { type: 'road-straight', gx: 2.5, gz: 6.487, rotDeg: 90 },
-    { type: 'road-straight', gx: 3.5, gz: 6.487, rotDeg: 90 },
-    { type: 'road-straight', gx: 4.5, gz: 6.487, rotDeg: 90 },
-    { type: 'road-straight', gx: 5.5, gz: 6.487, rotDeg: 90 },
+    { type: 'road-straight', gx: 2.5, gz: 6.487, rotDeg: 180 },
+    { type: 'road-straight', gx: 3.5, gz: 6.487, rotDeg: 180 },
+    { type: 'road-straight', gx: 4.5, gz: 6.487, rotDeg: 180 },
+    { type: 'road-straight', gx: 5.5, gz: 6.487, rotDeg: 180 },
     // 左辺 (x=0.513)
-    { type: 'road-straight', gx: 0.513, gz: 2.5, rotDeg: 0 },
-    { type: 'road-straight', gx: 0.513, gz: 3.5, rotDeg: 0 },
-    { type: 'road-straight', gx: 0.513, gz: 4.5, rotDeg: 0 },
+    { type: 'road-straight', gx: 0.513, gz: 2.5, rotDeg: 90 },
+    { type: 'road-straight', gx: 0.513, gz: 3.5, rotDeg: 90 },
+    { type: 'road-straight', gx: 0.513, gz: 4.5, rotDeg: 90 },
   ],
   path: [
     [1, 1], [2, 0.513], [6, 0.513],
