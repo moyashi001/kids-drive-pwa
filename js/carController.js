@@ -14,8 +14,12 @@ const TURN_RATE = 2.4;         // rad/秒 (最大)
 const OFFROAD_DRAG = 0.45;
 
 export class CarController {
-  constructor(gltfScene, carMeta) {
+  // worldScale: ステージ(コース)のスケールに合わせて速度感を調整する係数。
+  // 草原ステージ(道幅11ユニット)を基準の1とし、タイル街コース(TILE_SCALE=6の
+  // 小さめの街ブロック)ではコース全体が小さいぶん値を下げて使う。
+  constructor(gltfScene, carMeta, worldScale = 1) {
     this.meta = carMeta;
+    this.worldScale = worldScale;
     this.group = new THREE.Group();
     this.model = gltfScene;
     this.model.rotation.y = MODEL_FORWARD_OFFSET;
@@ -75,7 +79,7 @@ export class CarController {
   }
 
   updateAuto(dt, track) {
-    const AUTO_SPEED = 14 * (this.meta.speed || 1); // units/秒 (車種係数を反映した巡航速度)
+    const AUTO_SPEED = 14 * this.worldScale * (this.meta.speed || 1); // units/秒 (車種係数を反映した巡航速度)
     const length = track.curve.getLength();
     this.autoU = (this.autoU + (AUTO_SPEED * dt) / length + 1) % 1;
     const point = track.curve.getPointAt(this.autoU);
@@ -90,21 +94,22 @@ export class CarController {
     const offRoadRatio = roadOffsetRatio(track, this.position);
     const offRoad = offRoadRatio > 1;
     const dragMul = offRoad ? OFFROAD_DRAG : 1;
+    const s = this.worldScale;
 
-    const maxSpeed = MAX_SPEED * this.meta.speed * dragMul;
-    const maxReverse = MAX_REVERSE_SPEED * dragMul;
+    const maxSpeed = MAX_SPEED * s * this.meta.speed * dragMul;
+    const maxReverse = MAX_REVERSE_SPEED * s * dragMul;
 
     if (this.throttleInput > 0.01) {
-      this.speed += ACCEL * this.meta.speed * dragMul * dt * this.throttleInput;
+      this.speed += ACCEL * s * this.meta.speed * dragMul * dt * this.throttleInput;
     } else if (this.throttleInput < -0.01) {
       if (this.speed > 0) {
-        this.speed -= BRAKE_DECEL * dt * -this.throttleInput;
+        this.speed -= BRAKE_DECEL * s * dt * -this.throttleInput;
       } else {
-        this.speed -= ACCEL * 0.7 * dragMul * dt * -this.throttleInput;
+        this.speed -= ACCEL * s * 0.7 * dragMul * dt * -this.throttleInput;
       }
     } else {
       // 自然減速
-      const dec = Math.sign(this.speed) * FRICTION * dt;
+      const dec = Math.sign(this.speed) * FRICTION * s * dt;
       if (Math.abs(dec) > Math.abs(this.speed)) this.speed = 0;
       else this.speed -= dec;
     }
@@ -112,7 +117,7 @@ export class CarController {
     this.speed = THREE.MathUtils.clamp(this.speed, -maxReverse, maxSpeed);
 
     // 速度に応じた旋回 (止まっている時は曲がらない)
-    const speedRatio = THREE.MathUtils.clamp(Math.abs(this.speed) / (MAX_SPEED * 0.4), 0, 1);
+    const speedRatio = THREE.MathUtils.clamp(Math.abs(this.speed) / (MAX_SPEED * s * 0.4), 0, 1);
     const turnDir = this.speed >= 0 ? 1 : -1;
     this.heading -= this.steerInput * TURN_RATE * this.meta.turn * speedRatio * turnDir * dt;
 

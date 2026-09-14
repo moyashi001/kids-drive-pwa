@@ -1,5 +1,5 @@
 // キャッシュを更新する際はこのバージョン文字列を必ずインクリメントすること
-const VERSION = 'v3';
+const VERSION = 'v4';
 const CACHE_NAME = `kids-drive-pwa-${VERSION}`;
 
 const CAR_IDS = [
@@ -10,6 +10,21 @@ const CAR_IDS = [
   'kart-oobi', 'kart-oodi', 'kart-ooli', 'kart-oopi', 'kart-oozi',
 ];
 
+const TOY_CAR_IDS = [
+  'vehicle-drag-racer', 'vehicle-monster-truck', 'vehicle-racer-low', 'vehicle-racer',
+  'vehicle-speedster', 'vehicle-suv', 'vehicle-truck', 'vehicle-vintage-racer',
+];
+
+const ROAD_TILE_IDS = ['road-straight', 'road-bend'];
+
+const BUILDING_IDS = [
+  'building-a', 'building-b', 'building-c', 'building-d', 'building-e', 'building-f',
+  'building-h', 'building-k', 'building-n', 'building-q',
+  'water-tower', 'chimney-large', 'chimney-medium',
+  'shipping-container-a', 'shipping-container-b',
+  'windmill', 'windmill-low',
+];
+
 const CORE_ASSETS = [
   './',
   'index.html',
@@ -17,7 +32,10 @@ const CORE_ASSETS = [
   'css/style.css',
   'js/main.js',
   'js/cars.js',
+  'js/toyCars.js',
+  'js/stages.js',
   'js/track.js',
+  'js/cityTrack.js',
   'js/carController.js',
   'lib/three/build/three.module.js',
   'lib/three/examples/jsm/loaders/GLTFLoader.js',
@@ -29,8 +47,15 @@ const CORE_ASSETS = [
   'assets/models/decor/cone.glb',
   'assets/models/cars/Textures/colormap.png',
   'assets/models/decor/Textures/colormap.png',
+  'assets/models/toycars/Textures/colormap.png',
+  'assets/models/roadtiles/Textures/colormap.png',
+  'assets/models/buildings/Textures/colormap.png',
   ...CAR_IDS.map(id => `assets/models/cars/${id}.glb`),
   ...CAR_IDS.map(id => `assets/previews/${id}.png`),
+  ...TOY_CAR_IDS.map(id => `assets/models/toycars/${id}.glb`),
+  ...TOY_CAR_IDS.map(id => `assets/previews/toycars/${id}.png`),
+  ...ROAD_TILE_IDS.map(id => `assets/models/roadtiles/${id}.glb`),
+  ...BUILDING_IDS.map(id => `assets/models/buildings/${id}.glb`),
 ];
 
 self.addEventListener('install', event => {

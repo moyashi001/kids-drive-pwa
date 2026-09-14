@@ -1,13 +1,17 @@
 import * as THREE from '../lib/three/build/three.module.js';
 import { GLTFLoader } from '../lib/three/examples/jsm/loaders/GLTFLoader.js';
 import { CARS, getCarById } from './cars.js';
+import { TOY_CARS, getToyCarById } from './toyCars.js';
 import { createTrack } from './track.js';
+import { createCityTrack } from './cityTrack.js';
+import { STAGES } from './stages.js';
 import { CarController } from './carController.js';
 
 const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 
 const screens = {
   loading: document.getElementById('loading-screen'),
+  stage: document.getElementById('stage-screen'),
   select: document.getElementById('select-screen'),
   game: document.getElementById('game-screen'),
 };
@@ -16,19 +20,76 @@ function showScreen(name) {
   for (const key in screens) screens[key].classList.toggle('active', key === name);
 }
 
+// ---------- ステージ管理 ----------
+let currentStage = STAGES[0];
+
+function getCarSet() {
+  return currentStage.carSet === 'toy' ? TOY_CARS : CARS;
+}
+function getCarMetaById(id) {
+  return currentStage.carSet === 'toy' ? getToyCarById(id) : getCarById(id);
+}
+function getCarModelPath(id) {
+  return currentStage.carSet === 'toy' ? `assets/models/toycars/${id}.glb` : `assets/models/cars/${id}.glb`;
+}
+function getCarPreviewPath(id) {
+  return currentStage.carSet === 'toy' ? `assets/previews/toycars/${id}.png` : `assets/previews/${id}.png`;
+}
+
+function buildStageGrid() {
+  const grid = document.getElementById('stage-grid');
+  STAGES.forEach(stage => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'stage-card';
+    const emoji = document.createElement('div');
+    emoji.className = 'stage-emoji';
+    emoji.textContent = stage.emoji;
+    const name = document.createElement('div');
+    name.className = 'stage-name';
+    name.textContent = stage.name;
+    const desc = document.createElement('div');
+    desc.className = 'stage-desc';
+    desc.textContent = stage.description;
+    card.appendChild(emoji);
+    card.appendChild(name);
+    card.appendChild(desc);
+    card.addEventListener('click', () => selectStage(stage));
+    grid.appendChild(card);
+  });
+}
+
+function selectStage(stage) {
+  if (currentStage !== stage) {
+    currentStage = stage;
+    trackDirty = true;
+    npcs.forEach(npc => scene && scene.remove(npc.controller.group));
+    npcs = [];
+  }
+  buildCarGrid();
+  showScreen('select');
+}
+
+document.getElementById('stage-back-btn').addEventListener('click', () => {
+  showScreen('stage');
+});
+
 // ---------- 車選択画面 ----------
 let selectedCarId = null;
 
 function buildCarGrid() {
   const grid = document.getElementById('car-grid');
   const startBtn = document.getElementById('start-btn');
-  CARS.forEach(car => {
+  grid.innerHTML = '';
+  selectedCarId = null;
+  startBtn.disabled = true;
+  getCarSet().forEach(car => {
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'car-card';
     card.dataset.carId = car.id;
     const img = document.createElement('img');
-    img.src = `assets/previews/${car.id}.png`;
+    img.src = getCarPreviewPath(car.id);
     img.alt = car.name;
     img.loading = 'lazy';
     const label = document.createElement('div');
@@ -45,19 +106,20 @@ function buildCarGrid() {
     grid.appendChild(card);
   });
 
-  startBtn.addEventListener('click', () => {
+  startBtn.onclick = () => {
     if (!selectedCarId) return;
     startGame(selectedCarId);
-  });
+  };
 }
 
 // ---------- ローディング画面 ----------
 function preloadPreviews(onProgress) {
   return new Promise(resolve => {
+    const all = [...CARS.map(c => `assets/previews/${c.id}.png`), ...TOY_CARS.map(c => `assets/previews/toycars/${c.id}.png`)];
     let loaded = 0;
-    const total = CARS.length;
+    const total = all.length;
     if (total === 0) { resolve(); return; }
-    CARS.forEach(car => {
+    all.forEach(src => {
       const img = new Image();
       const done = () => {
         loaded++;
@@ -66,7 +128,7 @@ function preloadPreviews(onProgress) {
       };
       img.onload = done;
       img.onerror = done;
-      img.src = `assets/previews/${car.id}.png`;
+      img.src = src;
     });
   });
 }
@@ -74,6 +136,7 @@ function preloadPreviews(onProgress) {
 // ---------- Three.js セットアップ ----------
 let renderer, scene, camera;
 let track;
+let trackDirty = true; // ステージが変わったらtrackを作り直す必要がある
 let carController = null;
 let currentModel = null;
 const gltfLoader = new GLTFLoader();
@@ -105,11 +168,18 @@ function initScene() {
   sun.shadow.camera.far = 250;
   scene.add(sun);
 
-  track = createTrack();
-  scene.add(track.group);
-
   window.addEventListener('resize', onResize);
   onResize();
+}
+
+async function ensureTrack() {
+  if (!trackDirty && track) return;
+  if (track) scene.remove(track.group);
+  track = currentStage.trackType === 'tile'
+    ? await createCityTrack(currentStage.layout)
+    : createTrack();
+  scene.add(track.group);
+  trackDirty = false;
 }
 
 function onResize() {
@@ -120,15 +190,15 @@ function onResize() {
   camera.updateProjectionMatrix();
 }
 
-function loadCarModel(carId) {
-  if (gltfCache.has(carId)) {
-    return Promise.resolve(gltfCache.get(carId).clone());
+function loadCarModel(path) {
+  if (gltfCache.has(path)) {
+    return Promise.resolve(gltfCache.get(path).clone());
   }
   return new Promise((resolve, reject) => {
     gltfLoader.load(
-      `assets/models/cars/${carId}.glb`,
+      path,
       gltf => {
-        gltfCache.set(carId, gltf.scene);
+        gltfCache.set(path, gltf.scene);
         resolve(gltf.scene.clone());
       },
       undefined,
@@ -247,18 +317,19 @@ async function startGame(carId) {
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
 
   if (!renderer) initScene();
+  await ensureTrack();
   showScreen('game');
 
-  if (currentModel) {
+  if (currentModel && carController) {
     carController.group.parent && carController.group.parent.remove(carController.group);
   }
 
-  const carMeta = getCarById(carId);
+  const carMeta = getCarMetaById(carId);
   document.getElementById('car-name-badge').textContent = `${carMeta.emoji} ${carMeta.name}`;
 
-  const modelScene = await loadCarModel(carId);
+  const modelScene = await loadCarModel(getCarModelPath(carId));
   currentModel = modelScene;
-  carController = new CarController(modelScene, carMeta);
+  carController = new CarController(modelScene, carMeta, currentStage.worldScale || 1);
   carController.setPosition(track.startPosition, track.startAngle);
   scene.add(carController.group);
 
@@ -309,13 +380,7 @@ document.getElementById('sound-btn').addEventListener('click', () => {
 });
 
 // ---------- NPC車(コース上を自動走行し、ぶつかると爆発する) ----------
-const NPC_DEFS = [
-  { id: 'taxi', phase: 0.12 },
-  { id: 'van', phase: 0.37 },
-  { id: 'suv-luxury', phase: 0.62 },
-  { id: 'police', phase: 0.85 },
-];
-const COLLISION_DIST = 2.4;
+const COLLISION_DIST_BY_TYPE = { spline: 2.4, tile: 3.2 };
 const EXPLODE_DURATION = 1.0;
 const EXPLODE_RESPAWN_DELAY = 0.6;
 
@@ -330,13 +395,16 @@ function placeOnCurve(controller, u) {
 }
 
 async function initNpcs() {
-  for (const def of NPC_DEFS) {
-    const meta = getCarById(def.id);
-    const modelScene = await loadCarModel(def.id);
-    const controller = new CarController(modelScene, meta);
+  const ids = currentStage.npcIds || [];
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i];
+    const phase = (i + 0.5) / ids.length;
+    const meta = getCarMetaById(id);
+    const modelScene = await loadCarModel(getCarModelPath(id));
+    const controller = new CarController(modelScene, meta, currentStage.worldScale || 1);
     controller.autoMode = true;
-    controller.autoU = def.phase;
-    placeOnCurve(controller, def.phase);
+    controller.autoU = phase;
+    placeOnCurve(controller, phase);
     scene.add(controller.group);
     npcs.push({
       controller,
@@ -349,25 +417,27 @@ async function initNpcs() {
 }
 
 function spawnExplosionBurst(position) {
+  const s = currentStage.worldScale || 1;
   const count = 10;
   for (let i = 0; i < count; i++) {
-    const geo = new THREE.BoxGeometry(0.35, 0.35, 0.35);
+    const geo = new THREE.BoxGeometry(0.35 * s, 0.35 * s, 0.35 * s);
     const color = Math.random() < 0.5 ? 0xff9800 : 0xffeb3b;
     const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color }));
-    mesh.position.copy(position).add(new THREE.Vector3(0, 0.8, 0));
+    mesh.position.copy(position).add(new THREE.Vector3(0, 0.8 * s, 0));
     const angle = Math.random() * Math.PI * 2;
-    const speed = 4 + Math.random() * 5;
-    const vel = new THREE.Vector3(Math.cos(angle) * speed, 5 + Math.random() * 5, Math.sin(angle) * speed);
+    const speed = (4 + Math.random() * 5) * s;
+    const vel = new THREE.Vector3(Math.cos(angle) * speed, (5 + Math.random() * 5) * s, Math.sin(angle) * speed);
     scene.add(mesh);
     explosionParticles.push({ mesh, vel, life: 0, maxLife: 0.7 + Math.random() * 0.3 });
   }
 }
 
 function updateExplosionParticles(dt) {
+  const s = currentStage.worldScale || 1;
   for (let i = explosionParticles.length - 1; i >= 0; i--) {
     const p = explosionParticles[i];
     p.life += dt;
-    p.vel.y -= 20 * dt;
+    p.vel.y -= 20 * s * dt;
     p.mesh.position.addScaledVector(p.vel, dt);
     p.mesh.rotation.x += dt * 10;
     p.mesh.rotation.y += dt * 8;
@@ -400,11 +470,12 @@ function explodeNpc(npc) {
   if (npc.state === 'exploding') return;
   npc.state = 'exploding';
   npc.timer = 0;
+  const s = currentStage.worldScale || 1;
   const away = npc.controller.group.position.clone().sub(carController.group.position);
   away.y = 0;
   if (away.lengthSq() < 0.0001) away.set(Math.random() - 0.5, 0, Math.random() - 0.5);
   away.normalize();
-  npc.velocity.copy(away).multiplyScalar(9).add(new THREE.Vector3(0, 11, 0));
+  npc.velocity.copy(away).multiplyScalar(9 * s).add(new THREE.Vector3(0, 11 * s, 0));
   npc.angVel.set((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14);
   spawnExplosionBurst(npc.controller.group.position);
   playExplosionSound();
@@ -424,11 +495,12 @@ function updateNpcs(dt) {
       npc.controller.update(dt, track);
       if (carController) {
         const dist = npc.controller.group.position.distanceTo(carController.group.position);
-        if (dist < COLLISION_DIST) explodeNpc(npc);
+        const threshold = COLLISION_DIST_BY_TYPE[currentStage.trackType] || 2.4;
+        if (dist < threshold) explodeNpc(npc);
       }
     } else {
       npc.timer += dt;
-      npc.velocity.y -= 26 * dt;
+      npc.velocity.y -= 26 * (currentStage.worldScale || 1) * dt;
       npc.controller.group.position.addScaledVector(npc.velocity, dt);
       npc.controller.group.rotation.x += npc.angVel.x * dt;
       npc.controller.group.rotation.y += npc.angVel.y * dt;
@@ -441,6 +513,12 @@ function updateNpcs(dt) {
 }
 
 // ---------- カメラ追従 ----------
+// toy-car-kitの車はKenney Car Kitの車の1/3ほどのサイズなので、
+// カメラの追従距離・注視点オフセットもcarSetに応じて縮める
+const CAMERA_RIG_BY_CAR_SET = {
+  kenney: { back: 9, up: 4.5, lookUp: 1.2, lookAhead: 3 },
+  toy: { back: 3.2, up: 1.7, lookUp: 0.5, lookAhead: 1.2 },
+};
 const camOffset = new THREE.Vector3();
 const camTarget = new THREE.Vector3();
 const lookTarget = new THREE.Vector3();
@@ -449,12 +527,13 @@ function updateCamera(dt) {
   if (!carController) return;
   const forward = carController.forwardVector();
   const carPos = carController.group.position;
+  const rig = CAMERA_RIG_BY_CAR_SET[currentStage.carSet] || CAMERA_RIG_BY_CAR_SET.kenney;
 
-  camOffset.copy(forward).multiplyScalar(-9).add(new THREE.Vector3(0, 4.5, 0));
+  camOffset.copy(forward).multiplyScalar(-rig.back).add(new THREE.Vector3(0, rig.up, 0));
   camTarget.copy(carPos).add(camOffset);
   camera.position.lerp(camTarget, Math.min(1, dt * 4));
 
-  lookTarget.copy(carPos).add(new THREE.Vector3(0, 1.2, 0)).addScaledVector(forward, 3);
+  lookTarget.copy(carPos).add(new THREE.Vector3(0, rig.lookUp, 0)).addScaledVector(forward, rig.lookAhead);
   camera.lookAt(lookTarget);
 }
 
@@ -473,7 +552,7 @@ function loop(now) {
     updateNpcs(dt);
     updateExplosionParticles(dt);
     updateCamera(dt);
-    updateEngineSound(carController.speed / 26);
+    updateEngineSound(carController.speed / (26 * (currentStage.worldScale || 1)));
   }
 
   renderer.render(scene, camera);
@@ -507,10 +586,10 @@ if ('serviceWorker' in navigator) {
 
 // ---------- 起動 ----------
 async function boot() {
-  buildCarGrid();
+  buildStageGrid();
   const bar = document.getElementById('loading-bar');
   await preloadPreviews(ratio => { bar.style.width = `${Math.round(ratio * 100)}%`; });
-  showScreen('select');
+  showScreen('stage');
 }
 
 boot();
