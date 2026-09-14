@@ -2,8 +2,8 @@ import * as THREE from '../lib/three/build/three.module.js';
 import { roadOffsetRatio } from './track.js';
 
 // Kenney車モデルの正面方向を我々の前進定義(forward = (sin(h),0,cos(h)))に合わせるための補正角
-// main.js側の自動調整デバッグで確認済みの値
-const MODEL_FORWARD_OFFSET = Math.PI;
+// 実機確認により0が正しいことを確認済み(モデルの前面は元々+Z方向を向いている)
+const MODEL_FORWARD_OFFSET = 0;
 
 const MAX_SPEED = 26;          // units/秒
 const MAX_REVERSE_SPEED = 10;
