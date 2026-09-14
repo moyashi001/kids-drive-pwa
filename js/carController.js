@@ -54,6 +54,10 @@ export class CarController {
 
     this.autoMode = false;
     this.autoU = 0; // コース上の進行度 (0..1)
+
+    // とくぎ発動中に一時的に強化するための倍率(main.jsのcarSkillsから操作する)
+    this.boostMultiplier = 1;
+    this.turnBoostMultiplier = 1;
   }
 
   setPosition(vec3, heading) {
@@ -107,11 +111,11 @@ export class CarController {
     const dragMul = offRoad ? OFFROAD_DRAG : 1;
     const s = this.worldScale;
 
-    const maxSpeed = MAX_SPEED * s * this.meta.speed * dragMul;
+    const maxSpeed = MAX_SPEED * s * this.meta.speed * dragMul * this.boostMultiplier;
     const maxReverse = MAX_REVERSE_SPEED * s * dragMul;
 
     if (this.throttleInput > 0.01) {
-      this.speed += ACCEL * s * this.meta.speed * dragMul * dt * this.throttleInput;
+      this.speed += ACCEL * s * this.meta.speed * dragMul * this.boostMultiplier * dt * this.throttleInput;
     } else if (this.throttleInput < -0.01) {
       if (this.speed > 0) {
         this.speed -= BRAKE_DECEL * s * dt * -this.throttleInput;
@@ -130,7 +134,7 @@ export class CarController {
     // 速度に応じた旋回 (止まっている時は曲がらない)
     const speedRatio = THREE.MathUtils.clamp(Math.abs(this.speed) / (MAX_SPEED * s * 0.4), 0, 1);
     const turnDir = this.speed >= 0 ? 1 : -1;
-    this.heading -= this.steerInput * TURN_RATE * this.meta.turn * speedRatio * turnDir * dt;
+    this.heading -= this.steerInput * TURN_RATE * this.meta.turn * this.turnBoostMultiplier * speedRatio * turnDir * dt;
 
     const forward = this.forwardVector();
     this.position.addScaledVector(forward, this.speed * dt);

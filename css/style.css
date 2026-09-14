@@ -323,6 +323,39 @@ html, body {
 .accel-btn { width: 84px; height: 84px; font-size: 32px; background: rgba(124,179,66,0.9); color: #fff; }
 .brake-btn { background: rgba(239,83,80,0.9); color: #fff; }
 
+/* ---------- とくぎボタン ---------- */
+/* touch-controls(アクセル/ブレーキ)の少し上に常時表示する。タッチ端末でも
+   デスクトップ(マウス/スペースキー)でも使えるよう、hidden-controlsの
+   対象(タッチUI一式)には含めない */
+.skill-btn {
+  position: absolute;
+  right: 16px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 116px);
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  background: conic-gradient(#ffb300 var(--skill-pct, 0%), rgba(255,255,255,0.35) 0);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.25);
+  opacity: 0.55;
+  transition: opacity 0.2s ease, transform 0.15s ease;
+}
+.skill-btn:active { transform: scale(0.92); }
+.skill-btn.skill-hidden { display: none; }
+.skill-btn.skill-ready {
+  opacity: 1;
+  animation: skill-pulse 0.9s ease-in-out infinite;
+}
+@keyframes skill-pulse {
+  0%, 100% { box-shadow: 0 4px 0 rgba(0,0,0,0.25), 0 0 0 0 rgba(255,179,0,0.55); }
+  50% { box-shadow: 0 4px 0 rgba(0,0,0,0.25), 0 0 0 10px rgba(255,179,0,0); }
+}
+
 /* ---------- Install toast ---------- */
 .install-toast {
   position: fixed;

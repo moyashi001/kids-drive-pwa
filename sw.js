@@ -1,5 +1,5 @@
 // キャッシュを更新する際はこのバージョン文字列を必ずインクリメントすること
-const VERSION = 'v13';
+const VERSION = 'v14';
 const CACHE_NAME = `kids-drive-pwa-${VERSION}`;
 
 const CAR_IDS = [
@@ -34,6 +34,7 @@ const CORE_ASSETS = [
   'js/track.js',
   'js/cityTrack.js',
   'js/carController.js',
+  'js/carSkills.js',
   'lib/three/build/three.module.js',
   'lib/three/examples/jsm/loaders/GLTFLoader.js',
   'lib/three/examples/jsm/utils/BufferGeometryUtils.js',

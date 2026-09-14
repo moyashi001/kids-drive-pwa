@@ -6,6 +6,7 @@ import { createTrack } from './track.js';
 import { createCityTrack } from './cityTrack.js';
 import { STAGES } from './stages.js';
 import { CarController } from './carController.js';
+import { getCarSkill } from './carSkills.js';
 
 const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 
@@ -334,6 +335,12 @@ async function startGame(carId) {
   scene.add(carController.group);
   cameraSnapPending = true; // 前回のカメラ位置から滑らかに動くのではなく、開始位置に即座に合わせる
 
+  currentSkill = getCarSkill(carId);
+  skillGauge = 0;
+  skillActive = false;
+  skillTimer = 0;
+  updateSkillButton();
+
   setAutoMode(false, true);
   setupTouchControls();
   ensureAudio();
@@ -528,6 +535,111 @@ function updateNpcs(dt) {
   }
 }
 
+// ---------- とくぎ(車種ごとの必殺技) ----------
+// 走行距離に応じてゲージが溜まり、満タンでボタンが発動可能になる。
+// kind: 'siren'   -> 発動と同時に周囲のNPCをまとめて吹き飛ばす
+// kind: 'boost'   -> 一定時間、最高速度・加速を強化する
+// kind: 'agility' -> 一定時間、最高速度と旋回性能を強化する
+const SKILL_GAUGE_DISTANCE = 220; // これだけ走るとゲージが満タンになる(units)
+let currentSkill = null;
+let skillGauge = 0;   // 0..1
+let skillActive = false;
+let skillTimer = 0;
+const sirenRings = [];
+
+function updateSkillButton() {
+  const btn = document.getElementById('skill-btn');
+  const icon = document.getElementById('skill-icon');
+  if (!currentSkill) {
+    btn.classList.add('skill-hidden');
+    return;
+  }
+  btn.classList.remove('skill-hidden');
+  icon.textContent = currentSkill.icon;
+  const pct = skillActive ? 100 : Math.round(skillGauge * 100);
+  btn.style.setProperty('--skill-pct', `${pct}%`);
+  btn.classList.toggle('skill-ready', skillGauge >= 1 && !skillActive);
+}
+
+function spawnSirenRing(center, radius, duration) {
+  const geo = new THREE.CircleGeometry(1, 32);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xff1744, transparent: true, opacity: 0.35, depthWrite: false });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.copy(center);
+  mesh.position.y = 0.05;
+  scene.add(mesh);
+  sirenRings.push({ mesh, radius, duration, life: 0 });
+}
+
+function updateSirenRings(dt) {
+  for (let i = sirenRings.length - 1; i >= 0; i--) {
+    const r = sirenRings[i];
+    r.life += dt;
+    const t = Math.min(1, r.life / r.duration);
+    const scale = Math.max(0.001, r.radius * t);
+    r.mesh.scale.set(scale, scale, scale);
+    r.mesh.material.opacity = 0.35 * (1 - t);
+    if (t >= 1) {
+      scene.remove(r.mesh);
+      r.mesh.geometry.dispose();
+      r.mesh.material.dispose();
+      sirenRings.splice(i, 1);
+    }
+  }
+}
+
+function activateSkill() {
+  if (!currentSkill || !carController || skillActive || skillGauge < 1) return;
+  skillGauge = 0;
+  skillActive = true;
+  skillTimer = currentSkill.duration;
+
+  if (currentSkill.kind === 'siren') {
+    const threshold = COLLISION_DIST_BY_TYPE[currentStage.trackType] || 2.4;
+    const radius = threshold * currentSkill.radiusMul;
+    const carPos = carController.group.position;
+    for (const npc of npcs) {
+      if (npc.state === 'driving' && npc.controller.group.position.distanceTo(carPos) <= radius) {
+        explodeNpc(npc);
+      }
+    }
+    spawnSirenRing(carPos, radius, currentSkill.duration);
+  } else if (currentSkill.kind === 'boost') {
+    carController.boostMultiplier = currentSkill.speedMul;
+  } else if (currentSkill.kind === 'agility') {
+    carController.boostMultiplier = currentSkill.speedMul;
+    carController.turnBoostMultiplier = currentSkill.turnMul;
+  }
+
+  updateSkillButton();
+}
+
+document.getElementById('skill-btn').addEventListener('click', activateSkill);
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    activateSkill();
+  }
+});
+
+function updateSkill(dt) {
+  if (!carController || !currentSkill) return;
+
+  if (skillActive) {
+    skillTimer -= dt;
+    if (skillTimer <= 0) {
+      skillActive = false;
+      carController.boostMultiplier = 1;
+      carController.turnBoostMultiplier = 1;
+    }
+  } else if (skillGauge < 1) {
+    skillGauge = Math.min(1, skillGauge + Math.abs(carController.speed) * dt / SKILL_GAUGE_DISTANCE);
+  }
+
+  updateSkillButton();
+}
+
 // ---------- カメラ追従 ----------
 // toy-car-kitの車はKenney Car Kitの車の1/3ほどのサイズなので、
 // カメラの追従距離・注視点オフセットもcarSetに応じて縮める
@@ -584,6 +696,8 @@ function loop(now) {
     carController.update(dt, track);
     updateNpcs(dt);
     updateExplosionParticles(dt);
+    updateSirenRings(dt);
+    updateSkill(dt);
     updateCamera(dt);
     updateEngineSound(carController.speed / (26 * (currentStage.worldScale || 1)));
   }
