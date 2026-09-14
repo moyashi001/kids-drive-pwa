@@ -72,7 +72,7 @@ export const STAGES = [
     trackType: 'spline',
     carSet: 'kenney',
     worldScale: 1,
-    npcIds: ['taxi', 'van', 'suv-luxury', 'police'],
+    npcIds: ['taxi', 'van', 'suv-luxury', 'police', 'ambulance', 'firetruck', 'delivery'],
   },
   {
     id: 'city',
@@ -83,7 +83,7 @@ export const STAGES = [
     carSet: 'toy',
     worldScale: 0.24,
     layout: CITY_LAYOUT,
-    npcIds: ['vehicle-suv', 'vehicle-truck', 'vehicle-monster-truck'],
+    npcIds: ['vehicle-suv', 'vehicle-truck', 'vehicle-monster-truck', 'vehicle-racer', 'vehicle-speedster'],
   },
 ];
 
