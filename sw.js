@@ -1,5 +1,5 @@
 // キャッシュを更新する際はこのバージョン文字列を必ずインクリメントすること
-const VERSION = 'v5';
+const VERSION = 'v6';
 const CACHE_NAME = `kids-drive-pwa-${VERSION}`;
 
 const CAR_IDS = [
@@ -19,10 +19,7 @@ const ROAD_TILE_IDS = ['road-straight', 'road-bend'];
 
 const BUILDING_IDS = [
   'building-a', 'building-b', 'building-c', 'building-d', 'building-e', 'building-f',
-  'building-h', 'building-k', 'building-n', 'building-q',
-  'water-tower', 'chimney-large', 'chimney-medium',
-  'shipping-container-a', 'shipping-container-b',
-  'windmill', 'windmill-low',
+  'building-h', 'building-k',
 ];
 
 const CORE_ASSETS = [
