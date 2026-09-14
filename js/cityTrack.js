@@ -26,6 +26,30 @@ function loadBuilding(type) {
   return loadModel(`assets/models/buildings/${type}.glb`);
 }
 
+// 経路(curve)に沿って、進行方向を指す矢印を一定間隔で並べる。
+// タイルの模様だけでは分岐や似た直線区間で進行方向が分かりにくいための視覚ガイド。
+function buildDirectionArrows(curve, tileScale) {
+  const group = new THREE.Group();
+  const length = curve.getLength();
+  const spacing = tileScale * 0.9;
+  const count = Math.max(6, Math.round(length / spacing));
+  const geo = new THREE.ConeGeometry(tileScale * 0.14, tileScale * 0.4, 3);
+  geo.rotateX(Math.PI / 2);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffd54f, transparent: true, opacity: 0.9 });
+  for (let i = 0; i < count; i++) {
+    const u = i / count;
+    const point = curve.getPointAt(u);
+    const tangent = curve.getTangentAt(u);
+    const angle = Math.atan2(tangent.x, tangent.z);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(point);
+    mesh.position.y = 0.06;
+    mesh.rotation.y = angle;
+    group.add(mesh);
+  }
+  return group;
+}
+
 /**
  * タイル配置と装飾物からステージ(コース)を組み立てる。
  * 戻り値はtrack.jsのcreateTrack()と同じ形(group/curve/centerPts/roadWidth/decorGroup/
@@ -81,6 +105,11 @@ export async function createCityTrack(def) {
   const SEGMENTS = 360;
   const centerPts = [];
   for (let i = 0; i <= SEGMENTS; i++) centerPts.push(curve.getPointAt(i / SEGMENTS));
+
+  // 道路タイルの模様だけでは「どちらに進むか」が分かりにくいため、
+  // 経路に沿って進行方向を示す黄色い矢印を一定間隔で浮かべる
+  const arrowGroup = buildDirectionArrows(curve, TILE_SCALE);
+  group.add(arrowGroup);
 
   const startPosition = centerPts[0].clone();
   const startTangent = curve.getTangentAt(0);

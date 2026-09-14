@@ -44,51 +44,61 @@ const CITY_LAYOUT = {
   ],
 };
 
-// ---- ステージ3: こうじょう ちたい (7x4タイルの大きめループ + 工業地帯の装飾) ----
+// ---- ステージ3: こうじょう ちたい (L字/クランク型のコース。まちなかと形を変え、
+// 道路で囲まれた内側の広いスペースに工場施設をまとめて置けるようにしている) ----
 const INDUSTRIAL_LAYOUT = {
   groundColor: 0x7d7f7a,
-  groundRadius: 9,
-  groundCenter: [3, 1.5],
+  groundRadius: 8,
+  groundCenter: [2.5, 2.5],
   roadWidthRatio: 0.55,
   tiles: [
-    // 上辺 (gz=0), gx=0..6
+    // 上辺 (gz=0), gx=0..5
     { type: 'road-bend', gx: 0, gz: 0, rotDeg: 0 },
     { type: 'road-straight', gx: 1, gz: 0, rotDeg: 90 },
     { type: 'road-straight', gx: 2, gz: 0, rotDeg: 90 },
     { type: 'road-straight', gx: 3, gz: 0, rotDeg: 90 },
     { type: 'road-straight', gx: 4, gz: 0, rotDeg: 90 },
-    { type: 'road-straight', gx: 5, gz: 0, rotDeg: 90 },
-    { type: 'road-bend', gx: 6, gz: 0, rotDeg: 270 },
-    // 右辺 (gx=6), gz=1..3
-    { type: 'road-straight', gx: 6, gz: 1, rotDeg: 0 },
-    { type: 'road-straight', gx: 6, gz: 2, rotDeg: 0 },
-    { type: 'road-bend', gx: 6, gz: 3, rotDeg: 180 },
-    // 下辺 (gz=3), gx=0..5
-    { type: 'road-straight', gx: 5, gz: 3, rotDeg: 90 },
+    { type: 'road-bend', gx: 5, gz: 0, rotDeg: 270 },
+    // 右辺上半分 (gx=5), gz=1..2
+    { type: 'road-straight', gx: 5, gz: 1, rotDeg: 0 },
+    { type: 'road-straight', gx: 5, gz: 2, rotDeg: 0 },
+    { type: 'road-bend', gx: 5, gz: 3, rotDeg: 180 },
+    // 中段の横道 (gz=3), gx=3..4 (右側から中央へ切り込む)
     { type: 'road-straight', gx: 4, gz: 3, rotDeg: 90 },
-    { type: 'road-straight', gx: 3, gz: 3, rotDeg: 90 },
-    { type: 'road-straight', gx: 2, gz: 3, rotDeg: 90 },
-    { type: 'road-straight', gx: 1, gz: 3, rotDeg: 90 },
-    { type: 'road-bend', gx: 0, gz: 3, rotDeg: 90 },
-    // 左辺 (gx=0), gz=1..2
+    { type: 'road-bend', gx: 3, gz: 3, rotDeg: 0 },
+    // 中央の縦道 (gx=3), gz=4
+    { type: 'road-straight', gx: 3, gz: 4, rotDeg: 0 },
+    { type: 'road-bend', gx: 3, gz: 5, rotDeg: 180 },
+    // 下辺 (gz=5), gx=0..2
+    { type: 'road-straight', gx: 2, gz: 5, rotDeg: 90 },
+    { type: 'road-straight', gx: 1, gz: 5, rotDeg: 90 },
+    { type: 'road-bend', gx: 0, gz: 5, rotDeg: 90 },
+    // 左辺 (gx=0), gz=1..4
     { type: 'road-straight', gx: 0, gz: 1, rotDeg: 0 },
     { type: 'road-straight', gx: 0, gz: 2, rotDeg: 0 },
+    { type: 'road-straight', gx: 0, gz: 3, rotDeg: 0 },
+    { type: 'road-straight', gx: 0, gz: 4, rotDeg: 0 },
   ],
   path: [
-    [0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0],
-    [6, 1], [6, 2], [6, 3], [5, 3], [4, 3], [3, 3], [2, 3], [1, 3], [0, 3],
-    [0, 2], [0, 1],
+    [0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0],
+    [5, 1], [5, 2], [5, 3],
+    [4, 3], [3, 3],
+    [3, 4], [3, 5],
+    [2, 5], [1, 5], [0, 5],
+    [0, 4], [0, 3], [0, 2], [0, 1],
   ],
   buildings: [
-    { type: 'water-tower', gx: 3, gz: 1.5, rotDeg: 0 },
-    { type: 'chimney-large', gx: 2.1, gz: 1.5, rotDeg: 0 },
-    { type: 'chimney-medium', gx: 3.9, gz: 1.5, rotDeg: 0 },
-    { type: 'shipping-container-a', gx: 3, gz: 0.9, rotDeg: 10 },
-    { type: 'shipping-container-b', gx: 3.5, gz: 2.1, rotDeg: -10 },
-    { type: 'windmill', gx: -1.5, gz: -1, rotDeg: 30 },
-    { type: 'windmill-low', gx: 7.5, gz: -1, rotDeg: -20 },
-    { type: 'building-n', gx: -1.5, gz: 4, rotDeg: -20 },
-    { type: 'building-q', gx: 7.5, gz: 4, rotDeg: 20 },
+    // 道路で囲まれた内側(クランクの凹み)にまとめて配置
+    { type: 'water-tower', gx: 1.8, gz: 2.3, rotDeg: 0 },
+    { type: 'chimney-large', gx: 1.1, gz: 2.3, rotDeg: 0 },
+    { type: 'chimney-medium', gx: 2.5, gz: 1.5, rotDeg: 0 },
+    { type: 'shipping-container-a', gx: 1.3, gz: 3.3, rotDeg: 10 },
+    { type: 'shipping-container-b', gx: 2.2, gz: 3.6, rotDeg: -10 },
+    // 外周の外側に飾り
+    { type: 'windmill', gx: -1.6, gz: -1, rotDeg: 30 },
+    { type: 'windmill-low', gx: 6.6, gz: -1, rotDeg: -20 },
+    { type: 'building-n', gx: -1.6, gz: 5.8, rotDeg: -20, scale: 0.7 },
+    { type: 'building-q', gx: 6.6, gz: 1.2, rotDeg: 20, scale: 0.7 },
   ],
 };
 
