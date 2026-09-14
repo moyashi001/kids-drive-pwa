@@ -1,0 +1,293 @@
+:root {
+  --sky: #4fc3f7;
+  --sun: #ffd54f;
+  --grass: #7cb342;
+  --accent: #ff7043;
+  --accent-dark: #e64a19;
+  --panel: rgba(255,255,255,0.92);
+  --text-dark: #2d3436;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", "Rounded Mplus 1c", "Helvetica Neue", Arial, sans-serif;
+  background: var(--sky);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.screen {
+  position: fixed;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.screen.active { display: flex; }
+
+/* ---------- Loading ---------- */
+#loading-screen {
+  background: linear-gradient(180deg, var(--sky) 0%, #81d4fa 60%, var(--grass) 100%);
+}
+.loading-car {
+  font-size: 72px;
+  animation: bounce 1s infinite ease-in-out;
+}
+@keyframes bounce {
+  0%, 100% { transform: translateY(0) scaleX(1); }
+  50% { transform: translateY(-18px) scaleX(1); }
+}
+.loading-text {
+  margin-top: 8px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.25);
+}
+.loading-bar-outer {
+  margin-top: 20px;
+  width: min(70vw, 320px);
+  height: 18px;
+  background: rgba(255,255,255,0.5);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 3px solid #fff;
+}
+.loading-bar-inner {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
+/* ---------- Select screen ---------- */
+#select-screen {
+  background: linear-gradient(180deg, var(--sky) 0%, #b3e5fc 100%);
+  padding: env(safe-area-inset-top, 16px) 16px calc(env(safe-area-inset-bottom, 16px) + 8px) 16px;
+  justify-content: flex-start;
+}
+.title {
+  font-size: clamp(20px, 4.5vw, 32px);
+  color: #fff;
+  text-shadow: 0 3px 0 rgba(0,0,0,0.15);
+  margin: 14px 0 10px 0;
+  text-align: center;
+}
+.car-grid {
+  flex: 1;
+  width: 100%;
+  max-width: 1100px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+  padding: 6px 6px 16px 6px;
+}
+.car-card {
+  background: var(--panel);
+  border-radius: 18px;
+  padding: 10px 8px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 4px solid transparent;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.12);
+}
+.car-card:active { transform: scale(0.95); }
+.car-card.selected {
+  border-color: var(--accent);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 0 var(--accent-dark);
+}
+.car-card img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  pointer-events: none;
+}
+.car-card .car-label {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dark);
+  text-align: center;
+}
+
+.big-button {
+  margin: 10px 0 4px 0;
+  padding: 16px 48px;
+  font-size: 24px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(180deg, #ff8a65, var(--accent-dark));
+  border: none;
+  border-radius: 40px;
+  box-shadow: 0 6px 0 #bf360c;
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+.big-button:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #bf360c;
+}
+.big-button:disabled {
+  background: #b0bec5;
+  box-shadow: 0 6px 0 #78909c;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+/* ---------- Game screen ---------- */
+#game-screen { background: #000; }
+#game-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+.hud-top {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  left: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 10;
+  pointer-events: none;
+}
+.hud-top > * { pointer-events: auto; }
+
+.hud-button {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: var(--panel);
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 0 rgba(0,0,0,0.2);
+}
+.hud-button:active { transform: translateY(2px); box-shadow: none; }
+.mode-manual { background: #fff59d; }
+.mode-auto { background: #a5d6a7; }
+
+.car-name-badge {
+  flex: 1;
+  text-align: center;
+  background: var(--panel);
+  border-radius: 20px;
+  padding: 10px 14px;
+  font-weight: 800;
+  color: var(--text-dark);
+  font-size: 15px;
+  box-shadow: 0 3px 0 rgba(0,0,0,0.2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mode-banner {
+  position: absolute;
+  top: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255,255,255,0.95);
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-weight: 800;
+  color: var(--accent-dark);
+  font-size: 15px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  z-index: 10;
+}
+.mode-banner.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(6px);
+}
+
+/* ---------- Touch controls ---------- */
+.touch-controls {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 0 16px calc(env(safe-area-inset-bottom, 0px) + 18px) 16px;
+  z-index: 10;
+  pointer-events: none;
+}
+.touch-controls.hidden-controls { display: none; }
+.touch-left, .touch-right {
+  display: flex;
+  gap: 14px;
+  pointer-events: auto;
+}
+.touch-btn {
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  border: none;
+  font-size: 26px;
+  background: rgba(255,255,255,0.85);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dark);
+}
+.touch-btn:active { transform: translateY(3px); box-shadow: none; background: rgba(255,255,255,1); }
+.accel-btn { width: 84px; height: 84px; font-size: 32px; background: rgba(124,179,66,0.9); color: #fff; }
+.brake-btn { background: rgba(239,83,80,0.9); color: #fff; }
+
+/* ---------- Install toast ---------- */
+.install-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  transform: translateX(-50%);
+  background: var(--text-dark);
+  color: #fff;
+  padding: 10px 10px 10px 16px;
+  border-radius: 30px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  z-index: 50;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+}
+.install-toast.hidden { display: none; }
+.install-toast button {
+  border: none;
+  border-radius: 20px;
+  padding: 8px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+#install-btn { background: var(--accent); color: #fff; }
+#install-dismiss { background: transparent; color: #fff; font-size: 18px; padding: 4px 8px; }
+
+@media (min-width: 900px) {
+  .car-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}

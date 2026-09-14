@@ -1,0 +1,141 @@
+import * as THREE from '../lib/three/build/three.module.js';
+import { roadOffsetRatio } from './track.js';
+
+// Kenney車モデルの正面方向を我々の前進定義(forward = (sin(h),0,cos(h)))に合わせるための補正角
+// main.js側の自動調整デバッグで確認済みの値
+const MODEL_FORWARD_OFFSET = Math.PI;
+
+const MAX_SPEED = 26;          // units/秒
+const MAX_REVERSE_SPEED = 10;
+const ACCEL = 22;
+const BRAKE_DECEL = 34;
+const FRICTION = 10;
+const TURN_RATE = 2.4;         // rad/秒 (最大)
+const OFFROAD_DRAG = 0.45;
+
+export class CarController {
+  constructor(gltfScene, carMeta) {
+    this.meta = carMeta;
+    this.group = new THREE.Group();
+    this.model = gltfScene;
+    this.model.rotation.y = MODEL_FORWARD_OFFSET;
+
+    this.model.traverse(obj => {
+      if (obj.isMesh) {
+        obj.castShadow = true;
+        obj.receiveShadow = false;
+      }
+    });
+
+    this.group.add(this.model);
+
+    this.heading = 0;      // ラジアン。forward = (sin(h), 0, cos(h))
+    this.speed = 0;        // units/秒 (前進が正)
+    this.position = new THREE.Vector3();
+
+    // 操作入力 (-1..1)
+    this.steerInput = 0;
+    this.throttleInput = 0;
+
+    this.autoMode = false;
+    this.autoU = 0; // コース上の進行度 (0..1)
+  }
+
+  setPosition(vec3, heading) {
+    this.position.copy(vec3);
+    this.heading = heading;
+    this.syncTransform();
+  }
+
+  forwardVector() {
+    return new THREE.Vector3(Math.sin(this.heading), 0, Math.cos(this.heading));
+  }
+
+  syncTransform() {
+    this.group.position.copy(this.position);
+    this.group.rotation.y = this.heading;
+  }
+
+  setAutoMode(enabled, track) {
+    if (enabled === this.autoMode) return;
+    if (enabled) {
+      // 現在位置に一番近いコース上の進行度を探す(粗い探索)
+      this.autoU = findNearestU(track, this.position);
+    }
+    this.autoMode = enabled;
+  }
+
+  update(dt, track) {
+    if (this.autoMode) {
+      this.updateAuto(dt, track);
+    } else {
+      this.updateManual(dt, track);
+    }
+    this.syncTransform();
+  }
+
+  updateAuto(dt, track) {
+    const AUTO_SPEED = 14; // units/秒 (一定速度で周回)
+    const length = track.curve.getLength();
+    this.autoU = (this.autoU + (AUTO_SPEED * dt) / length) % 1;
+    const point = track.curve.getPointAt(this.autoU);
+    const tangent = track.curve.getTangentAt(this.autoU);
+    const targetHeading = Math.atan2(tangent.x, tangent.z);
+    this.heading = smoothAngle(this.heading, targetHeading, 6, dt);
+    this.position.copy(point);
+    this.speed = AUTO_SPEED;
+  }
+
+  updateManual(dt, track) {
+    const offRoadRatio = roadOffsetRatio(track, this.position);
+    const offRoad = offRoadRatio > 1;
+    const dragMul = offRoad ? OFFROAD_DRAG : 1;
+
+    const maxSpeed = MAX_SPEED * this.meta.speed * dragMul;
+    const maxReverse = MAX_REVERSE_SPEED * dragMul;
+
+    if (this.throttleInput > 0.01) {
+      this.speed += ACCEL * this.meta.speed * dragMul * dt * this.throttleInput;
+    } else if (this.throttleInput < -0.01) {
+      if (this.speed > 0) {
+        this.speed -= BRAKE_DECEL * dt * -this.throttleInput;
+      } else {
+        this.speed -= ACCEL * 0.7 * dragMul * dt * -this.throttleInput;
+      }
+    } else {
+      // 自然減速
+      const dec = Math.sign(this.speed) * FRICTION * dt;
+      if (Math.abs(dec) > Math.abs(this.speed)) this.speed = 0;
+      else this.speed -= dec;
+    }
+
+    this.speed = THREE.MathUtils.clamp(this.speed, -maxReverse, maxSpeed);
+
+    // 速度に応じた旋回 (止まっている時は曲がらない)
+    const speedRatio = THREE.MathUtils.clamp(Math.abs(this.speed) / (MAX_SPEED * 0.4), 0, 1);
+    const turnDir = this.speed >= 0 ? 1 : -1;
+    this.heading += this.steerInput * TURN_RATE * this.meta.turn * speedRatio * turnDir * dt;
+
+    const forward = this.forwardVector();
+    this.position.addScaledVector(forward, this.speed * dt);
+  }
+}
+
+function smoothAngle(current, target, rate, dt) {
+  let diff = target - current;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  const t = Math.min(1, rate * dt);
+  return current + diff * t;
+}
+
+function findNearestU(track, position) {
+  const pts = track.centerPts;
+  let bestI = 0;
+  let bestDist = Infinity;
+  for (let i = 0; i < pts.length; i++) {
+    const d = pts[i].distanceToSquared(position);
+    if (d < bestDist) { bestDist = d; bestI = i; }
+  }
+  return bestI / pts.length;
+}

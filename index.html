@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>くるまドライブ</title>
+<meta name="theme-color" content="#4fc3f7">
+<meta name="description" content="好きな車を選んでコースを走らせよう！子供向けドライブアプリ">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ローディング画面 -->
+<div id="loading-screen" class="screen active">
+  <div class="loading-car">🚗</div>
+  <div class="loading-text">じゅんびちゅう…</div>
+  <div class="loading-bar-outer"><div class="loading-bar-inner" id="loading-bar"></div></div>
+</div>
+
+<!-- 車えらび画面 -->
+<div id="select-screen" class="screen">
+  <h1 class="title">すきな くるまを えらんでね！</h1>
+  <div id="car-grid" class="car-grid"></div>
+  <button id="start-btn" class="big-button" disabled>スタート！</button>
+</div>
+
+<!-- ゲーム画面 -->
+<div id="game-screen" class="screen">
+  <canvas id="game-canvas"></canvas>
+
+  <div class="hud-top">
+    <button id="back-btn" class="hud-button" aria-label="もどる">🏠</button>
+    <div class="car-name-badge" id="car-name-badge"></div>
+    <button id="mode-btn" class="hud-button mode-manual" aria-label="モード切り替え">
+      <span id="mode-icon">🕹️</span>
+    </button>
+    <button id="sound-btn" class="hud-button" aria-label="サウンド">🔊</button>
+  </div>
+
+  <div class="mode-banner" id="mode-banner"></div>
+
+  <!-- タッチ操作 -->
+  <div class="touch-controls" id="touch-controls">
+    <div class="touch-left">
+      <button id="btn-left" class="touch-btn steer-btn" aria-label="左折">◀</button>
+      <button id="btn-right" class="touch-btn steer-btn" aria-label="右折">▶</button>
+    </div>
+    <div class="touch-right">
+      <button id="btn-brake" class="touch-btn pedal-btn brake-btn" aria-label="ブレーキ">🛑</button>
+      <button id="btn-accel" class="touch-btn pedal-btn accel-btn" aria-label="アクセル">⬆️</button>
+    </div>
+  </div>
+</div>
+
+<!-- PWAインストール案内 -->
+<div id="install-toast" class="install-toast hidden">
+  <span>ホーム画面に追加できるよ！</span>
+  <button id="install-btn">追加する</button>
+  <button id="install-dismiss">×</button>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
