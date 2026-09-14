@@ -198,7 +198,7 @@ async function ensureTrack() {
   applyStageTheme(currentStage);
   track = currentStage.trackType === 'tile'
     ? await createCityTrack(currentStage.layout)
-    : createTrack();
+    : createTrack(currentStage.layout);
   scene.add(track.group);
   trackDirty = false;
 }

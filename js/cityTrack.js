@@ -47,13 +47,19 @@ function loadBuilding(type) {
 
 // サイバーパンク調のネオン看板/機材はテクスチャ色をそのまま自発光させることで、
 // 夜のステージで光っているように見せる(Quaternius素材はemissiveを持たないベタ色PBRのため)。
-function applyEmissiveGlow(scene, intensity) {
+// tintColorを指定すると、素材本来の色ではなくその色で発光させる(看板ごとに
+// 色を変えてネオン街らしい賑やかさを出すため)。
+function applyEmissiveGlow(scene, intensity, tintColor) {
   scene.traverse(obj => {
     if (!obj.isMesh || !obj.material) return;
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     for (const mat of mats) {
       if (!mat.isMeshStandardMaterial) continue;
-      mat.emissive = mat.map ? new THREE.Color(0xffffff) : mat.color.clone();
+      if (tintColor !== undefined) {
+        mat.emissive = new THREE.Color(tintColor);
+      } else {
+        mat.emissive = mat.map ? new THREE.Color(0xffffff) : mat.color.clone();
+      }
       mat.emissiveMap = mat.map || null;
       mat.emissiveIntensity = intensity;
     }
@@ -110,7 +116,12 @@ export async function createCityTrack(def) {
     mesh.position.set(b.gx * TILE_SCALE, 0, b.gz * TILE_SCALE);
     mesh.rotation.y = THREE.MathUtils.degToRad(b.rotDeg || 0);
     mesh.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
-    if (b.type.startsWith('cyberpunk/')) applyEmissiveGlow(mesh, b.glowIntensity || 1.1);
+    if (b.type.startsWith('cyberpunk/')) applyEmissiveGlow(mesh, b.glowIntensity || 1.1, b.glowColor);
+    if (b.light) {
+      const light = new THREE.PointLight(b.light.color, b.light.intensity, b.light.distance);
+      light.position.set(b.gx * TILE_SCALE, 3, b.gz * TILE_SCALE);
+      decorGroup.add(light);
+    }
     decorGroup.add(mesh);
   }
 

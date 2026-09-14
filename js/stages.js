@@ -98,30 +98,43 @@ const CYBER_LAYOUT = {
     [7, 6], [6, 6.487], [2, 6.487],
     [1, 6], [0.513, 5], [0.513, 2],
   ],
+  // glowColor: 発光色(白一色だと単調なので看板ごとに色を変える)。
+  // light: 実際にその色で周囲を照らす点光源(distanceの範囲内だけ、軽量に)
   buildings: [
-    // 四隅にひときわ目立つ大型ビジョン
-    { type: 'cyberpunk/tv-1.gltf', gx: -1.3, gz: -0.8, rotDeg: 35, scale: 1.1, glowIntensity: 1.4 },
-    { type: 'cyberpunk/tv-1.gltf', gx: 9.3, gz: -0.8, rotDeg: -35, scale: 1.1, glowIntensity: 1.4 },
-    { type: 'cyberpunk/tv-1.gltf', gx: -1.3, gz: 7.8, rotDeg: -35, scale: 1.1, glowIntensity: 1.4 },
-    { type: 'cyberpunk/tv-1.gltf', gx: 9.3, gz: 7.8, rotDeg: 35, scale: 1.1, glowIntensity: 1.4 },
+    // 四隅にひときわ目立つ大型ビジョン(シアン)
+    { type: 'cyberpunk/tv-1.gltf', gx: -1.3, gz: -0.8, rotDeg: 35, scale: 1.1, glowIntensity: 1.6, glowColor: 0x00e5ff, light: { color: 0x00e5ff, intensity: 2.2, distance: 16 } },
+    { type: 'cyberpunk/tv-1.gltf', gx: 9.3, gz: -0.8, rotDeg: -35, scale: 1.1, glowIntensity: 1.6, glowColor: 0xff2d95, light: { color: 0xff2d95, intensity: 2.2, distance: 16 } },
+    { type: 'cyberpunk/tv-1.gltf', gx: -1.3, gz: 7.8, rotDeg: -35, scale: 1.1, glowIntensity: 1.6, glowColor: 0xff2d95, light: { color: 0xff2d95, intensity: 2.2, distance: 16 } },
+    { type: 'cyberpunk/tv-1.gltf', gx: 9.3, gz: 7.8, rotDeg: 35, scale: 1.1, glowIntensity: 1.6, glowColor: 0x00e5ff, light: { color: 0x00e5ff, intensity: 2.2, distance: 16 } },
     // 上辺沿い
-    { type: 'cyberpunk/sign-1.gltf', gx: 2.2, gz: -1.0, rotDeg: 0, scale: 0.9 },
-    { type: 'cyberpunk/light-street-1.gltf', gx: 3.6, gz: -0.9, rotDeg: 0, scale: 1 },
-    { type: 'cyberpunk/antenna-1.gltf', gx: 4.6, gz: -0.9, rotDeg: 0, scale: 1 },
-    { type: 'cyberpunk/sign-corner-hazard.gltf', gx: 6.0, gz: -1.0, rotDeg: 10, scale: 0.9 },
+    { type: 'cyberpunk/sign-1.gltf', gx: 2.2, gz: -1.0, rotDeg: 0, scale: 0.9, glowColor: 0xff2d95, light: { color: 0xff2d95, intensity: 1.8, distance: 13 } },
+    { type: 'cyberpunk/light-street-1.gltf', gx: 3.6, gz: -0.9, rotDeg: 0, scale: 1, glowColor: 0xffd166, light: { color: 0xffd166, intensity: 1.5, distance: 11 } },
+    { type: 'cyberpunk/antenna-1.gltf', gx: 4.6, gz: -0.9, rotDeg: 0, scale: 1, glowColor: 0xa855f7 },
+    { type: 'cyberpunk/sign-corner-hazard.gltf', gx: 6.0, gz: -1.0, rotDeg: 10, scale: 0.9, glowColor: 0x39ff88, light: { color: 0x39ff88, intensity: 1.8, distance: 13 } },
     // 下辺沿い
-    { type: 'cyberpunk/sign-1.gltf', gx: 2.2, gz: 7.9, rotDeg: 180, scale: 0.9 },
-    { type: 'cyberpunk/light-street-2.gltf', gx: 3.6, gz: 8.0, rotDeg: 180, scale: 1 },
-    { type: 'cyberpunk/antenna-2.gltf', gx: 4.6, gz: 8.0, rotDeg: 180, scale: 1 },
-    { type: 'cyberpunk/ac-stacked.gltf', gx: 6.0, gz: 7.9, rotDeg: 180, scale: 0.9 },
+    { type: 'cyberpunk/sign-1.gltf', gx: 2.2, gz: 7.9, rotDeg: 180, scale: 0.9, glowColor: 0x00e5ff, light: { color: 0x00e5ff, intensity: 1.8, distance: 13 } },
+    { type: 'cyberpunk/light-street-2.gltf', gx: 3.6, gz: 8.0, rotDeg: 180, scale: 1, glowColor: 0xffd166, light: { color: 0xffd166, intensity: 1.5, distance: 11 } },
+    { type: 'cyberpunk/antenna-2.gltf', gx: 4.6, gz: 8.0, rotDeg: 180, scale: 1, glowColor: 0xa855f7 },
+    { type: 'cyberpunk/ac-stacked.gltf', gx: 6.0, gz: 7.9, rotDeg: 180, scale: 0.9, glowColor: 0x39ff88 },
     // 左辺沿い
-    { type: 'cyberpunk/light-street-1.gltf', gx: -0.9, gz: 2.2, rotDeg: 90, scale: 1 },
-    { type: 'cyberpunk/sign-1.gltf', gx: -1.0, gz: 4.0, rotDeg: 90, scale: 0.9 },
+    { type: 'cyberpunk/light-street-1.gltf', gx: -0.9, gz: 2.2, rotDeg: 90, scale: 1, glowColor: 0xffd166, light: { color: 0xffd166, intensity: 1.5, distance: 11 } },
+    { type: 'cyberpunk/sign-1.gltf', gx: -1.0, gz: 4.0, rotDeg: 90, scale: 0.9, glowColor: 0xff2d95, light: { color: 0xff2d95, intensity: 1.8, distance: 13 } },
     // 右辺沿い
-    { type: 'cyberpunk/light-street-2.gltf', gx: 8.4, gz: 2.2, rotDeg: -90, scale: 1 },
-    { type: 'cyberpunk/ac-stacked.gltf', gx: 8.5, gz: 4.0, rotDeg: -90, scale: 0.9 },
+    { type: 'cyberpunk/light-street-2.gltf', gx: 8.4, gz: 2.2, rotDeg: -90, scale: 1, glowColor: 0x39ff88, light: { color: 0x39ff88, intensity: 1.5, distance: 11 } },
+    { type: 'cyberpunk/ac-stacked.gltf', gx: 8.5, gz: 4.0, rotDeg: -90, scale: 0.9, glowColor: 0xa855f7 },
   ],
 };
+
+// ---- ステージ4: ワインディング キャニオン ----
+// track.jsのcreateTrack()は制御点さえ渡せば任意の形のクローズドループを
+// 生成できる汎用実装のため、そうげんループより蛇行の激しい制御点を新たに設計し、
+// 立体交差風の高架橋(overpassU、実際には繋がっていない見た目だけの演出)を追加した。
+const WINDING_CONTROL_POINTS = [
+  [0, -65], [35, -60], [55, -35], [35, -20], [55, 5],
+  [65, 35], [35, 45], [10, 25], [10, 60], [-20, 65],
+  [-50, 45], [-30, 20], [-60, 5], [-65, -25], [-35, -35],
+  [-40, -60],
+];
 
 export const STAGES = [
   {
@@ -164,6 +177,27 @@ export const STAGES = [
       hemiIntensity: 0.55,
       sunColor: 0x8899ff,
       sunIntensity: 0.5,
+    },
+  },
+  {
+    id: 'winding',
+    name: 'ワインディング キャニオン',
+    emoji: '🏜️',
+    description: 'カーブが つづく やまみち コース。りったいこうさの したも とおるよ！',
+    trackType: 'spline',
+    carSet: 'kenney',
+    worldScale: 1,
+    layout: { controlPoints: WINDING_CONTROL_POINTS, overpassU: 0.28 },
+    npcIds: ['sedan-sports', 'hatchback-sports', 'suv', 'garbage-truck', 'tractor'],
+    theme: {
+      sky: 0xffab73,
+      fogNear: 100,
+      fogFar: 210,
+      hemiSky: 0xffd8a8,
+      hemiGround: 0x8a5a3a,
+      hemiIntensity: 0.95,
+      sunColor: 0xffcc88,
+      sunIntensity: 1.2,
     },
   },
 ];

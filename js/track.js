@@ -17,19 +17,25 @@ export const PALETTE = {
 const ROAD_WIDTH = 11;
 const CURB_WIDTH = 1.2;
 
-// クローズドループのコース制御点(XZ平面、Yは常に0)
-function buildControlPoints() {
-  const pts = [
-    [0, -46], [26, -50], [48, -38], [56, -14], [50, 10],
-    [30, 22], [30, 40], [10, 52], [-18, 48], [-34, 30],
-    [-30, 8], [-46, -4], [-54, -26], [-38, -46], [-16, -50],
-  ];
-  return pts.map(([x, z]) => new THREE.Vector3(x, 0, z));
+// クローズドループのコース制御点(XZ平面、Yは常に0)。そうげんループの既定コース
+const DEFAULT_CONTROL_POINTS = [
+  [0, -46], [26, -50], [48, -38], [56, -14], [50, 10],
+  [30, 22], [30, 40], [10, 52], [-18, 48], [-34, 30],
+  [-30, 8], [-46, -4], [-54, -26], [-38, -46], [-16, -50],
+];
+
+function buildControlPoints(points) {
+  return (points || DEFAULT_CONTROL_POINTS).map(([x, z]) => new THREE.Vector3(x, 0, z));
 }
 
-export function createTrack() {
+/**
+ * @param {Object} [def]
+ * @param {Array<[number,number]>} [def.controlPoints] コースの制御点(XZ)。省略時はそうげんループの既定コース
+ * @param {number} [def.overpassU] 立体交差風の装飾(高架橋)をコース上のどの位置(0..1)に置くか。省略時は装飾なし
+ */
+export function createTrack(def = {}) {
   const group = new THREE.Group();
-  const curve = new THREE.CatmullRomCurve3(buildControlPoints(), true, 'catmullrom', 0.55);
+  const curve = new THREE.CatmullRomCurve3(buildControlPoints(def.controlPoints), true, 'catmullrom', 0.55);
 
   const SEGMENTS = 400;
   const uSamples = [];
@@ -144,6 +150,17 @@ export function createTrack() {
   gate.rotation.y = startAngle;
   group.add(gate);
 
+  // ---- 立体交差風の装飾(高架橋。実際に道は分岐しないが、見た目だけ立体交差に見せる) ----
+  if (def.overpassU !== undefined) {
+    const opP = curve.getPointAt(def.overpassU);
+    const opNext = curve.getPointAt((def.overpassU + 0.01) % 1);
+    const opAngle = Math.atan2(opNext.x - opP.x, opNext.z - opP.z);
+    const overpass = buildOverpass();
+    overpass.position.copy(opP);
+    overpass.rotation.y = opAngle + Math.PI / 2; // 道と垂直に橋を渡す
+    group.add(overpass);
+  }
+
   // ---- コーン(コース外側のデコレーション) ----
   const decorGroup = new THREE.Group();
   group.add(decorGroup);
@@ -184,6 +201,41 @@ function buildStartGate() {
   const banner = new THREE.Mesh(new THREE.BoxGeometry(ROAD_WIDTH + 2, 1.4, 0.3), bannerMat);
   banner.position.set(0, 6.6, 0);
   g.add(left, right, banner);
+  return g;
+}
+
+// 実際には繋がっていない、見た目だけの高架道路(立体交差風の演出)。
+// 支柱2本+橋桁+橋の上を通るダミーの道路(短い区間)で構成する
+function buildOverpass() {
+  const g = new THREE.Group();
+  const DECK_Y = 8.5;
+  const SPAN = ROAD_WIDTH + 26; // 下の道をまたいで左右に張り出す長さ
+
+  const pillarMat = new THREE.MeshLambertMaterial({ color: 0xb0b0b8 });
+  const pillarGeo = new THREE.CylinderGeometry(0.9, 1.1, DECK_Y, 8);
+  [-1, 1].forEach(side => {
+    const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+    pillar.position.set(side * (ROAD_WIDTH / 2 + 3), DECK_Y / 2, 0);
+    g.add(pillar);
+  });
+
+  const deckMat = new THREE.MeshLambertMaterial({ color: 0x8a8d93 });
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(6, 1, SPAN), deckMat);
+  deck.position.set(0, DECK_Y, 0);
+  g.add(deck);
+
+  const roadMat = new THREE.MeshLambertMaterial({ color: PALETTE.road });
+  const roadDeck = new THREE.Mesh(new THREE.BoxGeometry(5, 0.15, SPAN), roadMat);
+  roadDeck.position.set(0, DECK_Y + 0.58, 0);
+  g.add(roadDeck);
+
+  const railMat = new THREE.MeshLambertMaterial({ color: 0xe0e0e0 });
+  [-1, 1].forEach(side => {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, SPAN), railMat);
+    rail.position.set(side * 2.6, DECK_Y + 0.95, 0);
+    g.add(rail);
+  });
+
   return g;
 }
 
