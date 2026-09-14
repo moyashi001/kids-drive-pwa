@@ -381,8 +381,8 @@ document.getElementById('sound-btn').addEventListener('click', () => {
 });
 
 // ---------- カメラ視点切り替え ----------
-const CAMERA_MODES = ['follow', 'top', 'front'];
-const CAMERA_MODE_ICON = { follow: '🎥', top: '🛰️', front: '🚙' };
+const CAMERA_MODES = ['follow', 'top'];
+const CAMERA_MODE_ICON = { follow: '🎥', top: '🛰️' };
 let cameraMode = 'follow';
 let cameraSnapPending = false; // 切替直後は1フレームだけ即座にカメラを合わせる(ふわっと動くのを防ぐ)
 
@@ -549,7 +549,6 @@ function updateCamera(dt) {
   cameraSnapPending = false;
 
   if (cameraMode === 'top') updateCameraTop(carPos, rig, lerpT);
-  else if (cameraMode === 'front') updateCameraFront(carPos, forward, rig, lerpT);
   else updateCameraFollow(carPos, forward, rig, lerpT);
 }
 
@@ -569,17 +568,6 @@ function updateCameraTop(carPos, rig, lerpT) {
   camTarget.copy(carPos).add(new THREE.Vector3(0, rig.topHeight, 0));
   camera.position.lerp(camTarget, lerpT);
   camera.lookAt(carPos);
-}
-
-function updateCameraFront(carPos, forward, rig, lerpT) {
-  // 車の進行方向側にカメラを回り込ませ、車を正面から見返す視点
-  camera.up.set(0, 1, 0);
-  camOffset.copy(forward).multiplyScalar(rig.back * 0.9).add(new THREE.Vector3(0, rig.up * 0.7, 0));
-  camTarget.copy(carPos).add(camOffset);
-  camera.position.lerp(camTarget, lerpT);
-
-  lookTarget.copy(carPos).add(new THREE.Vector3(0, rig.lookUp, 0));
-  camera.lookAt(lookTarget);
 }
 
 // ---------- メインループ ----------
