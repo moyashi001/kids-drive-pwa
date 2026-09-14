@@ -152,12 +152,22 @@ function updateInputFromKeys() {
   input.throttle = throttle;
 }
 
+const CONTROL_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyW', 'KeyA', 'KeyS', 'KeyD']);
+
 window.addEventListener('keydown', e => {
+  if (CONTROL_KEYS.has(e.code)) e.preventDefault();
   keyState.add(e.code);
   updateInputFromKeys();
 });
 window.addEventListener('keyup', e => {
+  if (CONTROL_KEYS.has(e.code)) e.preventDefault();
   keyState.delete(e.code);
+  updateInputFromKeys();
+});
+// タブが非アクティブになる等でkeyupを取り逃すとキーが押しっぱなし扱いのまま
+// 固着するため、フォーカスが外れたら入力状態を必ずリセットする
+window.addEventListener('blur', () => {
+  keyState.clear();
   updateInputFromKeys();
 });
 
@@ -232,6 +242,10 @@ function setSoundEnabled(enabled) {
 let gameStarted = false;
 
 async function startGame(carId) {
+  // 選択画面のボタンにフォーカスが残ったままだと、ブラウザによっては
+  // 矢印キー入力がフォーカス移動/スクロールに奪われてしまうため外しておく
+  if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+
   if (!renderer) initScene();
   showScreen('game');
 
@@ -251,6 +265,10 @@ async function startGame(carId) {
   setAutoMode(false, true);
   setupTouchControls();
   ensureAudio();
+
+  if (npcs.length === 0) {
+    await initNpcs();
+  }
 
   if (!gameStarted) {
     gameStarted = true;
@@ -290,6 +308,138 @@ document.getElementById('sound-btn').addEventListener('click', () => {
   setSoundEnabled(!soundOn);
 });
 
+// ---------- NPC車(コース上を自動走行し、ぶつかると爆発する) ----------
+const NPC_DEFS = [
+  { id: 'taxi', phase: 0.12 },
+  { id: 'van', phase: 0.37 },
+  { id: 'suv-luxury', phase: 0.62 },
+  { id: 'police', phase: 0.85 },
+];
+const COLLISION_DIST = 2.4;
+const EXPLODE_DURATION = 1.0;
+const EXPLODE_RESPAWN_DELAY = 0.6;
+
+let npcs = [];
+const explosionParticles = [];
+
+function placeOnCurve(controller, u) {
+  const point = track.curve.getPointAt(u);
+  const tangent = track.curve.getTangentAt(u);
+  const heading = Math.atan2(tangent.x, tangent.z);
+  controller.setPosition(point, heading);
+}
+
+async function initNpcs() {
+  for (const def of NPC_DEFS) {
+    const meta = getCarById(def.id);
+    const modelScene = await loadCarModel(def.id);
+    const controller = new CarController(modelScene, meta);
+    controller.autoMode = true;
+    controller.autoU = def.phase;
+    placeOnCurve(controller, def.phase);
+    scene.add(controller.group);
+    npcs.push({
+      controller,
+      state: 'driving',
+      timer: 0,
+      velocity: new THREE.Vector3(),
+      angVel: new THREE.Vector3(),
+    });
+  }
+}
+
+function spawnExplosionBurst(position) {
+  const count = 10;
+  for (let i = 0; i < count; i++) {
+    const geo = new THREE.BoxGeometry(0.35, 0.35, 0.35);
+    const color = Math.random() < 0.5 ? 0xff9800 : 0xffeb3b;
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color }));
+    mesh.position.copy(position).add(new THREE.Vector3(0, 0.8, 0));
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 4 + Math.random() * 5;
+    const vel = new THREE.Vector3(Math.cos(angle) * speed, 5 + Math.random() * 5, Math.sin(angle) * speed);
+    scene.add(mesh);
+    explosionParticles.push({ mesh, vel, life: 0, maxLife: 0.7 + Math.random() * 0.3 });
+  }
+}
+
+function updateExplosionParticles(dt) {
+  for (let i = explosionParticles.length - 1; i >= 0; i--) {
+    const p = explosionParticles[i];
+    p.life += dt;
+    p.vel.y -= 20 * dt;
+    p.mesh.position.addScaledVector(p.vel, dt);
+    p.mesh.rotation.x += dt * 10;
+    p.mesh.rotation.y += dt * 8;
+    const t = p.life / p.maxLife;
+    p.mesh.scale.setScalar(Math.max(0, 1 - t));
+    if (p.life >= p.maxLife) {
+      scene.remove(p.mesh);
+      p.mesh.geometry.dispose();
+      p.mesh.material.dispose();
+      explosionParticles.splice(i, 1);
+    }
+  }
+}
+
+function playExplosionSound() {
+  if (!audioCtx || !soundOn) return;
+  const bufferSize = Math.floor(audioCtx.sampleRate * 0.3);
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = buffer;
+  const gain = audioCtx.createGain();
+  gain.gain.value = 0.5;
+  noise.connect(gain).connect(audioCtx.destination);
+  noise.start();
+}
+
+function explodeNpc(npc) {
+  if (npc.state === 'exploding') return;
+  npc.state = 'exploding';
+  npc.timer = 0;
+  const away = npc.controller.group.position.clone().sub(carController.group.position);
+  away.y = 0;
+  if (away.lengthSq() < 0.0001) away.set(Math.random() - 0.5, 0, Math.random() - 0.5);
+  away.normalize();
+  npc.velocity.copy(away).multiplyScalar(9).add(new THREE.Vector3(0, 11, 0));
+  npc.angVel.set((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14);
+  spawnExplosionBurst(npc.controller.group.position);
+  playExplosionSound();
+}
+
+function respawnNpc(npc) {
+  npc.state = 'driving';
+  npc.controller.group.scale.setScalar(1);
+  const u = Math.random();
+  npc.controller.autoU = u;
+  placeOnCurve(npc.controller, u);
+}
+
+function updateNpcs(dt) {
+  for (const npc of npcs) {
+    if (npc.state === 'driving') {
+      npc.controller.update(dt, track);
+      if (carController) {
+        const dist = npc.controller.group.position.distanceTo(carController.group.position);
+        if (dist < COLLISION_DIST) explodeNpc(npc);
+      }
+    } else {
+      npc.timer += dt;
+      npc.velocity.y -= 26 * dt;
+      npc.controller.group.position.addScaledVector(npc.velocity, dt);
+      npc.controller.group.rotation.x += npc.angVel.x * dt;
+      npc.controller.group.rotation.y += npc.angVel.y * dt;
+      npc.controller.group.rotation.z += npc.angVel.z * dt;
+      const t = Math.min(1, npc.timer / EXPLODE_DURATION);
+      npc.controller.group.scale.setScalar(Math.max(0, 1 - t));
+      if (npc.timer > EXPLODE_DURATION + EXPLODE_RESPAWN_DELAY) respawnNpc(npc);
+    }
+  }
+}
+
 // ---------- カメラ追従 ----------
 const camOffset = new THREE.Vector3();
 const camTarget = new THREE.Vector3();
@@ -320,6 +470,8 @@ function loop(now) {
       carController.steerInput = input.steer;
     }
     carController.update(dt, track);
+    updateNpcs(dt);
+    updateExplosionParticles(dt);
     updateCamera(dt);
     updateEngineSound(carController.speed / 26);
   }

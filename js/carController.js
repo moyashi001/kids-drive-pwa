@@ -75,9 +75,9 @@ export class CarController {
   }
 
   updateAuto(dt, track) {
-    const AUTO_SPEED = 14; // units/秒 (一定速度で周回)
+    const AUTO_SPEED = 14 * (this.meta.speed || 1); // units/秒 (車種係数を反映した巡航速度)
     const length = track.curve.getLength();
-    this.autoU = (this.autoU + (AUTO_SPEED * dt) / length) % 1;
+    this.autoU = (this.autoU + (AUTO_SPEED * dt) / length + 1) % 1;
     const point = track.curve.getPointAt(this.autoU);
     const tangent = track.curve.getTangentAt(this.autoU);
     const targetHeading = Math.atan2(tangent.x, tangent.z);
@@ -114,7 +114,7 @@ export class CarController {
     // 速度に応じた旋回 (止まっている時は曲がらない)
     const speedRatio = THREE.MathUtils.clamp(Math.abs(this.speed) / (MAX_SPEED * 0.4), 0, 1);
     const turnDir = this.speed >= 0 ? 1 : -1;
-    this.heading += this.steerInput * TURN_RATE * this.meta.turn * speedRatio * turnDir * dt;
+    this.heading -= this.steerInput * TURN_RATE * this.meta.turn * speedRatio * turnDir * dt;
 
     const forward = this.forwardVector();
     this.position.addScaledVector(forward, this.speed * dt);
