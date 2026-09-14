@@ -540,12 +540,16 @@ function updateNpcs(dt) {
 // kind: 'siren'   -> 発動と同時に周囲のNPCをまとめて吹き飛ばす
 // kind: 'boost'   -> 一定時間、最高速度・加速を強化する
 // kind: 'agility' -> 一定時間、最高速度と旋回性能を強化する
+// kind: 'ram'     -> 一定時間ブーストしながら、触れたNPCを継続的に吹き飛ばす
 const SKILL_GAUGE_DISTANCE = 220; // これだけ走るとゲージが満タンになる(units)
+const SKILL_SPARKLE_COLORS = [0xffd700, 0xffffff, 0x00e5ff, 0xff4fa3];
 let currentSkill = null;
 let skillGauge = 0;   // 0..1
 let skillActive = false;
 let skillTimer = 0;
+let skillSparkleTimer = 0;
 const sirenRings = [];
+const skillSparkles = [];
 
 function updateSkillButton() {
   const btn = document.getElementById('skill-btn');
@@ -561,25 +565,30 @@ function updateSkillButton() {
   btn.classList.toggle('skill-ready', skillGauge >= 1 && !skillActive);
 }
 
-function spawnSirenRing(center, radius, duration) {
+function spawnSirenRing(center, radius, delay) {
   const geo = new THREE.CircleGeometry(1, 32);
-  const mat = new THREE.MeshBasicMaterial({ color: 0xff1744, transparent: true, opacity: 0.35, depthWrite: false });
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0xff1744, transparent: true, opacity: 0.5,
+    depthWrite: false, blending: THREE.AdditiveBlending,
+  });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.rotation.x = -Math.PI / 2;
   mesh.position.copy(center);
   mesh.position.y = 0.05;
   scene.add(mesh);
-  sirenRings.push({ mesh, radius, duration, life: 0 });
+  sirenRings.push({ mesh, radius, duration: 1.1, life: -delay });
 }
 
 function updateSirenRings(dt) {
   for (let i = sirenRings.length - 1; i >= 0; i--) {
     const r = sirenRings[i];
     r.life += dt;
+    if (r.life < 0) { r.mesh.visible = false; continue; }
+    r.mesh.visible = true;
     const t = Math.min(1, r.life / r.duration);
     const scale = Math.max(0.001, r.radius * t);
     r.mesh.scale.set(scale, scale, scale);
-    r.mesh.material.opacity = 0.35 * (1 - t);
+    r.mesh.material.opacity = 0.5 * (1 - t);
     if (t >= 1) {
       scene.remove(r.mesh);
       r.mesh.geometry.dispose();
@@ -589,27 +598,93 @@ function updateSirenRings(dt) {
   }
 }
 
+// 発動時のキラキラ演出。とくぎの種類によらず、派手さを出すために共通で呼ぶ
+function spawnSkillSparkles(position, count, spread, s) {
+  for (let i = 0; i < count; i++) {
+    const size = (0.12 + Math.random() * 0.2) * s;
+    const geo = new THREE.OctahedronGeometry(size, 0);
+    const color = SKILL_SPARKLE_COLORS[Math.floor(Math.random() * SKILL_SPARKLE_COLORS.length)];
+    const mat = new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity: 1,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(position).add(new THREE.Vector3(
+      (Math.random() - 0.5) * spread,
+      (0.3 + Math.random() * 1.2) * s,
+      (Math.random() - 0.5) * spread
+    ));
+    scene.add(mesh);
+    const angle = Math.random() * Math.PI * 2;
+    const speed = (1.5 + Math.random() * 3.5) * s;
+    const vel = new THREE.Vector3(Math.cos(angle) * speed, (2 + Math.random() * 3.5) * s, Math.sin(angle) * speed);
+    skillSparkles.push({ mesh, vel, life: 0, maxLife: 0.6 + Math.random() * 0.5, spin: (Math.random() - 0.5) * 12 });
+  }
+}
+
+function updateSkillSparkles(dt) {
+  for (let i = skillSparkles.length - 1; i >= 0; i--) {
+    const p = skillSparkles[i];
+    p.life += dt;
+    p.vel.y -= 6 * dt;
+    p.mesh.position.addScaledVector(p.vel, dt);
+    p.mesh.rotation.x += p.spin * dt;
+    p.mesh.rotation.y += p.spin * dt * 0.7;
+    const t = p.life / p.maxLife;
+    p.mesh.material.opacity = Math.max(0, 1 - t);
+    p.mesh.scale.setScalar(1 + Math.sin(t * Math.PI * 6) * 0.2); // きらきら明滅させる
+    if (t >= 1) {
+      scene.remove(p.mesh);
+      p.mesh.geometry.dispose();
+      p.mesh.material.dispose();
+      skillSparkles.splice(i, 1);
+    }
+  }
+}
+
+function flashSkillScreen() {
+  const flash = document.getElementById('skill-flash');
+  flash.classList.remove('flash');
+  void flash.offsetWidth; // リフローを挟んでアニメーションを再始動させる
+  flash.classList.add('flash');
+}
+
+function explodeNpcsAround(center, radius) {
+  for (const npc of npcs) {
+    if (npc.state === 'driving' && npc.controller.group.position.distanceTo(center) <= radius) {
+      explodeNpc(npc);
+    }
+  }
+}
+
 function activateSkill() {
   if (!currentSkill || !carController || skillActive || skillGauge < 1) return;
   skillGauge = 0;
   skillActive = true;
   skillTimer = currentSkill.duration;
+  skillSparkleTimer = 0;
+
+  const s = currentStage.worldScale || 1;
+  const carPos = carController.group.position;
+  spawnSkillSparkles(carPos, 22, 2.4 * s, s);
+  flashSkillScreen();
 
   if (currentSkill.kind === 'siren') {
     const threshold = COLLISION_DIST_BY_TYPE[currentStage.trackType] || 2.4;
     const radius = threshold * currentSkill.radiusMul;
-    const carPos = carController.group.position;
-    for (const npc of npcs) {
-      if (npc.state === 'driving' && npc.controller.group.position.distanceTo(carPos) <= radius) {
-        explodeNpc(npc);
-      }
-    }
-    spawnSirenRing(carPos, radius, currentSkill.duration);
+    explodeNpcsAround(carPos, radius);
+    spawnSirenRing(carPos, radius, 0);
+    spawnSirenRing(carPos, radius * 0.7, 0.15);
   } else if (currentSkill.kind === 'boost') {
     carController.boostMultiplier = currentSkill.speedMul;
   } else if (currentSkill.kind === 'agility') {
     carController.boostMultiplier = currentSkill.speedMul;
     carController.turnBoostMultiplier = currentSkill.turnMul;
+  } else if (currentSkill.kind === 'ram') {
+    carController.boostMultiplier = currentSkill.speedMul;
+    const threshold = COLLISION_DIST_BY_TYPE[currentStage.trackType] || 2.4;
+    explodeNpcsAround(carPos, threshold * currentSkill.radiusMul);
+    spawnSirenRing(carPos, threshold * currentSkill.radiusMul, 0);
   }
 
   updateSkillButton();
@@ -628,6 +703,21 @@ function updateSkill(dt) {
 
   if (skillActive) {
     skillTimer -= dt;
+
+    // ram中は継続的に周囲を巻き込む。boost/agilityは走行中にきらきらの尾を引かせる
+    const s = currentStage.worldScale || 1;
+    if (currentSkill.kind === 'ram') {
+      const threshold = COLLISION_DIST_BY_TYPE[currentStage.trackType] || 2.4;
+      explodeNpcsAround(carController.group.position, threshold * currentSkill.radiusMul);
+    }
+    if (currentSkill.kind !== 'siren') {
+      skillSparkleTimer += dt;
+      if (skillSparkleTimer >= 0.06) {
+        skillSparkleTimer = 0;
+        spawnSkillSparkles(carController.group.position, 2, 0.8 * s, s);
+      }
+    }
+
     if (skillTimer <= 0) {
       skillActive = false;
       carController.boostMultiplier = 1;
@@ -697,6 +787,7 @@ function loop(now) {
     updateNpcs(dt);
     updateExplosionParticles(dt);
     updateSirenRings(dt);
+    updateSkillSparkles(dt);
     updateSkill(dt);
     updateCamera(dt);
     updateEngineSound(carController.speed / (26 * (currentStage.worldScale || 1)));

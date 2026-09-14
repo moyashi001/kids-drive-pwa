@@ -1,14 +1,53 @@
-// 車種ごとの「とくぎ」定義。まずは代表的な数車種のみに実装し、
-// 動作を確認してから他の車種にも広げる想定。
+// 車種ごとの「とくぎ」定義。1台ずつ個別設計はせず、車種の系統ごとに
+// おおまかにグループ分けして割り当てている。
 //
-// kind: 'siren'   -> 発動した瞬間、周囲のNPCをまとめて吹き飛ばす(パトカーのサイレン)
-// kind: 'boost'   -> 一定時間、自車の最高速度・加速を強化する
-// kind: 'agility' -> 一定時間、自車の最高速度と旋回性能を強化する(緊急走行)
+// kind: 'siren'   -> 発動した瞬間、周囲のNPCをまとめて吹き飛ばす(パトカー/消防車などの緊急車両)
+// kind: 'boost'   -> 一定時間、自車の最高速度・加速を強化する(レース系・カート系)
+// kind: 'agility' -> 一定時間、自車の最高速度と旋回性能を強化する(乗用車系)
+// kind: 'ram'     -> 一定時間ブーストしながら、体当たりした範囲のNPCを吹き飛ばす(トラック・重機系)
+const DURATION = 5.0; // すべてのとくぎに共通の効果時間(秒)
+
 export const CAR_SKILLS = {
-  police: { icon: '🚨', name: 'サイレン', kind: 'siren', duration: 1.6, radiusMul: 3.5 },
-  race: { icon: '🔥', name: 'ブースト', kind: 'boost', duration: 3.0, speedMul: 1.6 },
-  'race-future': { icon: '🚀', name: 'ハイパーブースト', kind: 'boost', duration: 2.5, speedMul: 1.8 },
-  ambulance: { icon: '🚑', name: 'きゅうこう走行', kind: 'agility', duration: 3.0, speedMul: 1.25, turnMul: 1.8 },
+  // ---- 緊急車両: サイレン(即時に周囲のNPCを吹き飛ばす) ----
+  police: { icon: '🚨', name: 'サイレン', kind: 'siren', duration: DURATION, radiusMul: 3.5 },
+  'tractor-police': { icon: '🚨', name: 'けいこく', kind: 'siren', duration: DURATION, radiusMul: 3.2 },
+  firetruck: { icon: '🚒', name: 'ほうすい', kind: 'siren', duration: DURATION, radiusMul: 3.2 },
+
+  // ---- レース系・カート系: ブースト ----
+  race: { icon: '🔥', name: 'ブースト', kind: 'boost', duration: DURATION, speedMul: 1.6 },
+  'race-future': { icon: '🚀', name: 'ハイパーブースト', kind: 'boost', duration: DURATION, speedMul: 1.8 },
+  'sedan-sports': { icon: '💨', name: 'スポーツダッシュ', kind: 'boost', duration: DURATION, speedMul: 1.45 },
+  'hatchback-sports': { icon: '💨', name: 'スポーツダッシュ', kind: 'boost', duration: DURATION, speedMul: 1.45 },
+  'kart-oobi': { icon: '🏁', name: 'カートダッシュ', kind: 'boost', duration: DURATION, speedMul: 1.5 },
+  'kart-oodi': { icon: '🏁', name: 'カートダッシュ', kind: 'boost', duration: DURATION, speedMul: 1.5 },
+  'kart-ooli': { icon: '🏁', name: 'カートダッシュ', kind: 'boost', duration: DURATION, speedMul: 1.5 },
+  'kart-oopi': { icon: '🏁', name: 'カートダッシュ', kind: 'boost', duration: DURATION, speedMul: 1.5 },
+  'kart-oozi': { icon: '🏁', name: 'カートダッシュ', kind: 'boost', duration: DURATION, speedMul: 1.5 },
+  'vehicle-racer': { icon: '🔥', name: 'ブースト', kind: 'boost', duration: DURATION, speedMul: 1.5 },
+  'vehicle-racer-low': { icon: '🔥', name: 'ブースト', kind: 'boost', duration: DURATION, speedMul: 1.55 },
+  'vehicle-drag-racer': { icon: '🚀', name: 'ダッシュ', kind: 'boost', duration: DURATION, speedMul: 1.7 },
+  'vehicle-speedster': { icon: '💨', name: 'スピードアップ', kind: 'boost', duration: DURATION, speedMul: 1.5 },
+
+  // ---- 乗用車系: きゅうこう走行(速度+旋回アップ) ----
+  ambulance: { icon: '🚑', name: 'きゅうこう走行', kind: 'agility', duration: DURATION, speedMul: 1.25, turnMul: 1.8 },
+  sedan: { icon: '✨', name: 'ドライブモード', kind: 'agility', duration: DURATION, speedMul: 1.2, turnMul: 1.5 },
+  suv: { icon: '✨', name: 'ドライブモード', kind: 'agility', duration: DURATION, speedMul: 1.2, turnMul: 1.5 },
+  'suv-luxury': { icon: '✨', name: 'ドライブモード', kind: 'agility', duration: DURATION, speedMul: 1.2, turnMul: 1.5 },
+  taxi: { icon: '💴', name: 'きゅうこう配車', kind: 'agility', duration: DURATION, speedMul: 1.25, turnMul: 1.6 },
+  van: { icon: '✨', name: 'ドライブモード', kind: 'agility', duration: DURATION, speedMul: 1.2, turnMul: 1.5 },
+  'vehicle-vintage-racer': { icon: '✨', name: 'ドライブモード', kind: 'agility', duration: DURATION, speedMul: 1.2, turnMul: 1.5 },
+  'vehicle-suv': { icon: '✨', name: 'ドライブモード', kind: 'agility', duration: DURATION, speedMul: 1.2, turnMul: 1.5 },
+
+  // ---- トラック・重機系: 体当たり(ブースト+接触したNPCを吹き飛ばす) ----
+  delivery: { icon: '💥', name: 'たいあたり', kind: 'ram', duration: DURATION, speedMul: 1.3, radiusMul: 1.8 },
+  'delivery-flat': { icon: '💥', name: 'たいあたり', kind: 'ram', duration: DURATION, speedMul: 1.3, radiusMul: 1.8 },
+  truck: { icon: '💥', name: 'たいあたり', kind: 'ram', duration: DURATION, speedMul: 1.25, radiusMul: 2.0 },
+  'truck-flat': { icon: '💥', name: 'たいあたり', kind: 'ram', duration: DURATION, speedMul: 1.25, radiusMul: 2.0 },
+  'garbage-truck': { icon: '💥', name: 'パワフル収集', kind: 'ram', duration: DURATION, speedMul: 1.2, radiusMul: 2.0 },
+  tractor: { icon: '💥', name: 'たいあたり', kind: 'ram', duration: DURATION, speedMul: 1.2, radiusMul: 1.8 },
+  'tractor-shovel': { icon: '💥', name: 'なぎはらい', kind: 'ram', duration: DURATION, speedMul: 1.2, radiusMul: 2.2 },
+  'vehicle-truck': { icon: '💥', name: 'たいあたり', kind: 'ram', duration: DURATION, speedMul: 1.25, radiusMul: 1.8 },
+  'vehicle-monster-truck': { icon: '💥', name: 'モンスターアタック', kind: 'ram', duration: DURATION, speedMul: 1.3, radiusMul: 2.2 },
 };
 
 export function getCarSkill(carId) {

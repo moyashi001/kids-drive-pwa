@@ -356,6 +356,23 @@ html, body {
   50% { box-shadow: 0 4px 0 rgba(0,0,0,0.25), 0 0 0 10px rgba(255,179,0,0); }
 }
 
+/* とくぎ発動時の画面フラッシュ(ド派手さを出すための一瞬の光) */
+.skill-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255,215,0,0.6), rgba(255,215,0,0) 70%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 15;
+}
+.skill-flash.flash {
+  animation: skill-flash-anim 0.5s ease-out;
+}
+@keyframes skill-flash-anim {
+  0% { opacity: 0.95; }
+  100% { opacity: 0; }
+}
+
 /* ---------- Install toast ---------- */
 .install-toast {
   position: fixed;
