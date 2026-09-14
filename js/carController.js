@@ -1,9 +1,20 @@
 import * as THREE from '../lib/three/build/three.module.js';
 import { roadOffsetRatio } from './track.js';
 
-// Kenney車モデルの正面方向を我々の前進定義(forward = (sin(h),0,cos(h)))に合わせるための補正角
-// 実機確認により0が正しいことを確認済み(モデルの前面は元々+Z方向を向いている)
-const MODEL_FORWARD_OFFSET = 0;
+// Kenney車モデルの正面方向を我々の前進定義(forward = (sin(h),0,cos(h)))に合わせるための補正角。
+// Kenney "Car Kit"はモデルの前面が元々+Z方向を向いており0でよいが、
+// "Toy Car Kit"はホイールのメッシュ名(wheel-fr/fl が front)のz座標を調べると
+// 前輪が-Z側にある(Car Kitとは前後の設計規則が逆)ため、180度补正が必要。
+// メッシュ名に"front"が含まれるホイールのzが正なら0、負ならPIを自動判定する。
+function detectForwardOffset(gltfScene) {
+  let frontZ = null;
+  gltfScene.traverse(obj => {
+    if (frontZ !== null) return;
+    const n = (obj.name || '').toLowerCase();
+    if (n.includes('front') || /wheel.*-f[rl]$/.test(n)) frontZ = obj.position.z;
+  });
+  return frontZ !== null && frontZ < 0 ? Math.PI : 0;
+}
 
 const MAX_SPEED = 26;          // units/秒
 const MAX_REVERSE_SPEED = 10;
@@ -22,7 +33,7 @@ export class CarController {
     this.worldScale = worldScale;
     this.group = new THREE.Group();
     this.model = gltfScene;
-    this.model.rotation.y = MODEL_FORWARD_OFFSET;
+    this.model.rotation.y = detectForwardOffset(gltfScene);
 
     this.model.traverse(obj => {
       if (obj.isMesh) {

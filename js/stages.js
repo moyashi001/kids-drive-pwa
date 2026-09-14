@@ -3,46 +3,58 @@
 // 'tile'    なら cityTrack.js の createCityTrack(layout)(タイル道路の街コース)を使う。
 // carSet:   'kenney' なら cars.js の25台、'toy' なら toyCars.js の8台を選択肢にする。
 
-// ---- ステージ2: まちなか ストリート (5x3タイルの矩形ループ) ----
+// ---- ステージ2: まちなか ストリート ----
+// road-bend(歩道なし)とroad-straight(歩道あり)を組み合わせると、直線⇔カーブの
+// 継ぎ目で歩道が急に途切れて見えたため、road-straightと同じ「歩道あり」デザインの
+// road-curve-pavement(2x2サイズ)をカーブに採用し、白線・歩道の意匠を統一している。
+// 接続点はRaycaster+テクスチャ色の実測で判明した値(タイル中心から±0.487、
+// ほぼ0.5とみなせる)を使用。回転ごとの接続方向は road-bend と同じ実測法則
+// (0:西⇔南 / 90:東⇔南 / 180:東⇔北 / 270:北⇔西)がそのまま当てはまる。
 const CITY_LAYOUT = {
   groundColor: 0x8d9199,
-  groundRadius: 7,
-  groundCenter: [2, 1],
-  roadWidthRatio: 0.55,
-  // road-bendの実際の接続方向(Raycasterでの実測に基づく):
-  //   rotDeg=0:西⇔南 / rotDeg=90:東⇔南 / rotDeg=180:東⇔北 / rotDeg=270:北⇔西
+  groundRadius: 8,
+  groundCenter: [4, 3.5],
+  roadWidthRatio: 0.5,
   tiles: [
-    // 上辺 (gz=0)
-    { type: 'road-bend', gx: 0, gz: 0, rotDeg: 90 },
-    { type: 'road-straight', gx: 1, gz: 0, rotDeg: 90 },
-    { type: 'road-straight', gx: 2, gz: 0, rotDeg: 90 },
-    { type: 'road-straight', gx: 3, gz: 0, rotDeg: 90 },
-    { type: 'road-bend', gx: 4, gz: 0, rotDeg: 0 },
-    // 右辺 (gx=4)
-    { type: 'road-straight', gx: 4, gz: 1, rotDeg: 0 },
-    { type: 'road-bend', gx: 4, gz: 2, rotDeg: 270 },
-    // 下辺 (gz=2)
-    { type: 'road-straight', gx: 3, gz: 2, rotDeg: 90 },
-    { type: 'road-straight', gx: 2, gz: 2, rotDeg: 90 },
-    { type: 'road-straight', gx: 1, gz: 2, rotDeg: 90 },
-    { type: 'road-bend', gx: 0, gz: 2, rotDeg: 180 },
-    // 左辺 (gx=0)
-    { type: 'road-straight', gx: 0, gz: 1, rotDeg: 0 },
+    // 四隅のカーブ(2x2)
+    { type: 'road-curve-pavement', gx: 1, gz: 1, rotDeg: 90, scale: 2 },
+    { type: 'road-curve-pavement', gx: 7, gz: 1, rotDeg: 0, scale: 2 },
+    { type: 'road-curve-pavement', gx: 7, gz: 6, rotDeg: 270, scale: 2 },
+    { type: 'road-curve-pavement', gx: 1, gz: 6, rotDeg: 180, scale: 2 },
+    // 上辺 (z=0.513)
+    { type: 'road-straight', gx: 2.5, gz: 0.513, rotDeg: 90 },
+    { type: 'road-straight', gx: 3.5, gz: 0.513, rotDeg: 90 },
+    { type: 'road-straight', gx: 4.5, gz: 0.513, rotDeg: 90 },
+    { type: 'road-straight', gx: 5.5, gz: 0.513, rotDeg: 90 },
+    // 右辺 (x=7.487)
+    { type: 'road-straight', gx: 7.487, gz: 2.5, rotDeg: 0 },
+    { type: 'road-straight', gx: 7.487, gz: 3.5, rotDeg: 0 },
+    { type: 'road-straight', gx: 7.487, gz: 4.5, rotDeg: 0 },
+    // 下辺 (z=6.487)
+    { type: 'road-straight', gx: 2.5, gz: 6.487, rotDeg: 90 },
+    { type: 'road-straight', gx: 3.5, gz: 6.487, rotDeg: 90 },
+    { type: 'road-straight', gx: 4.5, gz: 6.487, rotDeg: 90 },
+    { type: 'road-straight', gx: 5.5, gz: 6.487, rotDeg: 90 },
+    // 左辺 (x=0.513)
+    { type: 'road-straight', gx: 0.513, gz: 2.5, rotDeg: 0 },
+    { type: 'road-straight', gx: 0.513, gz: 3.5, rotDeg: 0 },
+    { type: 'road-straight', gx: 0.513, gz: 4.5, rotDeg: 0 },
   ],
   path: [
-    [0, 0], [1, 0], [2, 0], [3, 0], [4, 0],
-    [4, 1], [4, 2], [3, 2], [2, 2], [1, 2], [0, 2],
-    [0, 1],
+    [1, 1], [2, 0.513], [6, 0.513],
+    [7, 1], [7.487, 2], [7.487, 5],
+    [7, 6], [6, 6.487], [2, 6.487],
+    [1, 6], [0.513, 5], [0.513, 2],
   ],
   buildings: [
-    { type: 'building-e', gx: -1.9, gz: -1.3, rotDeg: 20, scale: 0.7 },
-    { type: 'building-c', gx: 5.9, gz: -1.3, rotDeg: -20, scale: 0.7 },
-    { type: 'building-h', gx: -1.9, gz: 3.3, rotDeg: -15, scale: 0.7 },
-    { type: 'building-k', gx: 5.9, gz: 3.3, rotDeg: 15, scale: 0.7 },
-    { type: 'building-b', gx: 1.3, gz: -1.9, rotDeg: 0, scale: 0.7 },
-    { type: 'building-a', gx: 2.7, gz: -1.9, rotDeg: 0, scale: 0.7 },
-    { type: 'building-d', gx: 1.3, gz: 3.9, rotDeg: 180, scale: 0.7 },
-    { type: 'building-f', gx: 2.7, gz: 3.9, rotDeg: 180, scale: 0.7 },
+    { type: 'building-e', gx: -1.5, gz: -0.7, rotDeg: 20, scale: 0.7 },
+    { type: 'building-c', gx: 9.5, gz: -0.7, rotDeg: -20, scale: 0.7 },
+    { type: 'building-h', gx: -1.5, gz: 7.7, rotDeg: -15, scale: 0.7 },
+    { type: 'building-k', gx: 9.5, gz: 7.7, rotDeg: 15, scale: 0.7 },
+    { type: 'building-b', gx: 3, gz: -1.7, rotDeg: 0, scale: 0.7 },
+    { type: 'building-a', gx: 5, gz: -1.7, rotDeg: 0, scale: 0.7 },
+    { type: 'building-d', gx: 3, gz: 8.2, rotDeg: 180, scale: 0.7 },
+    { type: 'building-f', gx: 5, gz: 8.2, rotDeg: 180, scale: 0.7 },
   ],
 };
 

@@ -70,7 +70,7 @@ export async function createCityTrack(def) {
 
   for (const t of def.tiles) {
     const mesh = await loadTile(t.type);
-    mesh.scale.setScalar(TILE_SCALE);
+    mesh.scale.setScalar(TILE_SCALE * (t.scale || 1));
     mesh.position.set(t.gx * TILE_SCALE, 0, t.gz * TILE_SCALE);
     mesh.rotation.y = THREE.MathUtils.degToRad(t.rotDeg || 0);
     mesh.traverse(o => { if (o.isMesh) { o.receiveShadow = true; o.castShadow = false; } });
