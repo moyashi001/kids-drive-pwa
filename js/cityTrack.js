@@ -8,10 +8,26 @@ export const TILE_SCALE = 6;
 const gltfLoader = new GLTFLoader();
 const tileCache = new Map();
 
+// Kenneyのタイル/建物テクスチャは色帯を敷き詰めた小さなパレット画像で、
+// 色の境界がくっきりしているため、通常のミップマップ生成(バイリニア縮小)を
+// 適用すると隣接する色帯が混ざり合い、道路を真上や斜め上から見た際に
+// 実在しない明るい縞模様(モアレ)が見えてしまう。ミップマップを無効化して防ぐ。
+function fixPaletteTextureFiltering(scene) {
+  scene.traverse(obj => {
+    if (obj.isMesh && obj.material && obj.material.map) {
+      const tex = obj.material.map;
+      tex.generateMipmaps = false;
+      tex.minFilter = THREE.LinearFilter;
+      tex.needsUpdate = true;
+    }
+  });
+}
+
 function loadModel(path) {
   if (tileCache.has(path)) return Promise.resolve(tileCache.get(path).clone());
   return new Promise((resolve, reject) => {
     gltfLoader.load(path, gltf => {
+      fixPaletteTextureFiltering(gltf.scene);
       tileCache.set(path, gltf.scene);
       resolve(gltf.scene.clone());
     }, undefined, reject);
@@ -24,30 +40,6 @@ function loadTile(type) {
 
 function loadBuilding(type) {
   return loadModel(`assets/models/buildings/${type}.glb`);
-}
-
-// 経路(curve)に沿って、進行方向を指す矢印を一定間隔で並べる。
-// タイルの模様だけでは分岐や似た直線区間で進行方向が分かりにくいための視覚ガイド。
-function buildDirectionArrows(curve, tileScale) {
-  const group = new THREE.Group();
-  const length = curve.getLength();
-  const spacing = tileScale * 0.9;
-  const count = Math.max(6, Math.round(length / spacing));
-  const geo = new THREE.ConeGeometry(tileScale * 0.14, tileScale * 0.4, 3);
-  geo.rotateX(Math.PI / 2);
-  const mat = new THREE.MeshBasicMaterial({ color: 0xffd54f, transparent: true, opacity: 0.9 });
-  for (let i = 0; i < count; i++) {
-    const u = i / count;
-    const point = curve.getPointAt(u);
-    const tangent = curve.getTangentAt(u);
-    const angle = Math.atan2(tangent.x, tangent.z);
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.copy(point);
-    mesh.position.y = 0.06;
-    mesh.rotation.y = angle;
-    group.add(mesh);
-  }
-  return group;
 }
 
 /**
@@ -105,11 +97,6 @@ export async function createCityTrack(def) {
   const SEGMENTS = 360;
   const centerPts = [];
   for (let i = 0; i <= SEGMENTS; i++) centerPts.push(curve.getPointAt(i / SEGMENTS));
-
-  // 道路タイルの模様だけでは「どちらに進むか」が分かりにくいため、
-  // 経路に沿って進行方向を示す黄色い矢印を一定間隔で浮かべる
-  const arrowGroup = buildDirectionArrows(curve, TILE_SCALE);
-  group.add(arrowGroup);
 
   const startPosition = centerPts[0].clone();
   const startTangent = curve.getTangentAt(0);
