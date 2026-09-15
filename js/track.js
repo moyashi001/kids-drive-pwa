@@ -384,9 +384,10 @@ export function roadOffsetRatio(track, position) {
   return dist / (track.roadWidth / 2);
 }
 
-// 現在位置に一番近いコース上の高さと、その付近の勾配(ピッチ角)を返す。
-// 坂道で車のY座標・傾きを追従させるために使う。
-export function sampleTrackHeight(track, position) {
+// 現在位置に一番近いcenterPtsのindexを返す(XZ平面のみで判定)。
+// ジャンプ台/スピードパッドの「コース上のどのあたりを走っているか」判定など、
+// 弧長ベースの位置判定に使う。
+export function nearestCenterIndex(track, position) {
   const pts = track.centerPts;
   let bestI = 0;
   let bestDist = Infinity;
@@ -397,6 +398,14 @@ export function sampleTrackHeight(track, position) {
     const d = dx * dx + dz * dz;
     if (d < bestDist) { bestDist = d; bestI = i; }
   }
+  return bestI;
+}
+
+// 現在位置に一番近いコース上の高さと、その付近の勾配(ピッチ角)を返す。
+// 坂道で車のY座標・傾きを追従させるために使う。
+export function sampleTrackHeight(track, position) {
+  const pts = track.centerPts;
+  const bestI = nearestCenterIndex(track, position);
   const spread = 4;
   const next = pts[(bestI + spread) % pts.length];
   const prev = pts[(bestI - spread + pts.length) % pts.length];

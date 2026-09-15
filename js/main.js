@@ -7,7 +7,7 @@ import { OutputPass } from '../lib/three/examples/jsm/postprocessing/OutputPass.
 import { CARS } from './cars.js';
 import { TOY_CARS } from './toyCars.js';
 import { PETS } from './pets.js';
-import { createTrack } from './track.js';
+import { createTrack, nearestCenterIndex } from './track.js';
 import { createCityTrack } from './cityTrack.js';
 import { STAGES } from './stages.js';
 import { CarController } from './carController.js';
@@ -285,6 +285,13 @@ function updateItemBoxes(dt) {
   }
 }
 
+// センターライン上のindex同士の周回を考慮した距離(コースが近くで交差/隣接していても
+// 「実際に走っている場所」だけを見て判定できる)
+function circularIndexDist(a, b, len) {
+  const d = Math.abs(a - b);
+  return Math.min(d, len - d);
+}
+
 // ---------- ジャンプ台(触れると宙に飛ぶ) ----------
 const JUMP_RAMP_US = [0.2, 0.62];
 let jumpRamps = [];
@@ -311,6 +318,7 @@ function setupJumpRamps() {
   jumpRamps.forEach(r => track.group.remove(r.mesh));
   jumpRamps = [];
   const s = currentStage.worldScale || 1;
+  const pts = track.centerPts;
   for (const u of JUMP_RAMP_US) {
     const p = track.curve.getPointAt(u);
     const tangent = track.curve.getTangentAt(u);
@@ -319,19 +327,25 @@ function setupJumpRamps() {
     mesh.position.copy(p);
     mesh.rotation.y = angle;
     track.group.add(mesh);
-    jumpRamps.push({ mesh, position: p.clone(), cooldown: 0 });
+    const index = Math.round(u * pts.length) % pts.length;
+    jumpRamps.push({ mesh, index, cooldown: 0 });
   }
 }
 
 function updateJumpRamps(dt) {
   if (!carController) return;
-  // 道幅に対する割合で当たり判定を決める(道の中心にドンピシャで
-  // 乗らないと反応しないと手動運転では実質使えないため、広めに取る)
-  const pickupDist = track.roadWidth * 0.8;
+  const pts = track.centerPts;
+  // 台の物理的な長さ(4.5*s)ぶんだけ手前〜奥を判定範囲にする。
+  // 単純な直線距離ではなく「コース上のどのあたりを走っているか(弧長のindex)」で
+  // 判定することで、コースが近くで交差/隣接していても誤反応せず、
+  // かつ台の手前で早期発動しないようにする。
+  const s = currentStage.worldScale || 1;
+  const arcHalf = 2.6 * s;
+  const indexWindow = Math.max(1, Math.round((arcHalf / track.curve.getLength()) * pts.length));
+  const carIndex = nearestCenterIndex(track, carController.group.position);
   for (const ramp of jumpRamps) {
     if (ramp.cooldown > 0) { ramp.cooldown -= dt; continue; }
-    const dist = ramp.position.distanceTo(carController.group.position);
-    if (dist < pickupDist && !carController.airborne) {
+    if (circularIndexDist(carIndex, ramp.index, pts.length) <= indexWindow && !carController.airborne) {
       carController.triggerJump();
       ramp.cooldown = 1.2;
     }
@@ -356,6 +370,7 @@ function setupSpeedPads() {
   speedPads.forEach(p => track.group.remove(p.mesh));
   speedPads = [];
   const s = currentStage.worldScale || 1;
+  const pts = track.centerPts;
   for (const u of SPEED_PAD_US) {
     const p = track.curve.getPointAt(u);
     const tangent = track.curve.getTangentAt(u);
@@ -364,18 +379,23 @@ function setupSpeedPads() {
     mesh.position.copy(p).add(new THREE.Vector3(0, 0.05 * s, 0));
     mesh.rotation.z = angle;
     track.group.add(mesh);
-    speedPads.push({ mesh, position: p.clone(), pulse: Math.random() * Math.PI * 2 });
+    const index = Math.round(u * pts.length) % pts.length;
+    speedPads.push({ mesh, index, pulse: Math.random() * Math.PI * 2 });
   }
 }
 
 function updateSpeedPads(dt) {
   if (!carController) return;
-  const pickupDist = track.roadWidth * 0.8;
+  const pts = track.centerPts;
+  // パッドの物理的な長さ(3.2*s)ぶんだけを判定範囲にする(ジャンプ台と同じ弧長ベース判定)
+  const s = currentStage.worldScale || 1;
+  const arcHalf = 2.0 * s;
+  const indexWindow = Math.max(1, Math.round((arcHalf / track.curve.getLength()) * pts.length));
+  const carIndex = nearestCenterIndex(track, carController.group.position);
   for (const pad of speedPads) {
     pad.pulse += dt * 4;
     pad.mesh.material.emissiveIntensity = 1.0 + Math.sin(pad.pulse) * 0.4;
-    const dist = pad.position.distanceTo(carController.group.position);
-    if (dist < pickupDist) {
+    if (circularIndexDist(carIndex, pad.index, pts.length) <= indexWindow) {
       carController.triggerSpeedPad();
     }
   }
