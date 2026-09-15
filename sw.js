@@ -1,5 +1,5 @@
 // キャッシュを更新する際はこのバージョン文字列を必ずインクリメントすること
-const VERSION = 'v18';
+const VERSION = 'v19';
 const CACHE_NAME = `kids-drive-pwa-${VERSION}`;
 
 const CAR_IDS = [
@@ -47,6 +47,12 @@ const CORE_ASSETS = [
   'icons/icon-512.png',
   'icons/icon-192-maskable.png',
   'icons/icon-512-maskable.png',
+  // KenneyのglbはテクスチャをTextures/colormap.pngへの外部参照にしているため必須
+  // (Quaternius製cyberpunk/*.gltfはbase64埋め込みで外部ファイル不要、これとは異なる)
+  'assets/models/cars/Textures/colormap.png',
+  'assets/models/toycars/Textures/colormap.png',
+  'assets/models/roadtiles/Textures/colormap.png',
+  'assets/models/buildings/Textures/colormap.png',
   ...CAR_IDS.map(id => `assets/models/cars/${id}.glb`),
   ...CAR_IDS.map(id => `assets/previews/${id}.png`),
   ...TOY_CAR_IDS.map(id => `assets/models/toycars/${id}.glb`),
