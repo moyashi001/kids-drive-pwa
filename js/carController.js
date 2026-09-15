@@ -118,6 +118,11 @@ export class CarController {
   }
 
   updateAuto(dt, track) {
+    // オートモードは常にコースの中心線をそのままなぞるため、ジャンプ台の
+    // 空中物理は使わない。手動モードに切り替えた時に、ジャンプ台を踏んだまま
+    // 残った古いairborne状態が残って急に飛び上がらないようにリセットしておく。
+    this.airborne = false;
+    this.velocityY = 0;
     const AUTO_SPEED = 14 * this.worldScale * (this.meta.speed || 1); // units/秒 (車種係数を反映した巡航速度)
     const length = track.curve.getLength();
     this.autoU = (this.autoU + (AUTO_SPEED * dt) / length + 1) % 1;

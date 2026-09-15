@@ -328,7 +328,7 @@ function setupJumpRamps() {
     mesh.rotation.y = angle;
     track.group.add(mesh);
     const index = Math.round(u * pts.length) % pts.length;
-    jumpRamps.push({ mesh, index, cooldown: 0 });
+    jumpRamps.push({ mesh, index, armed: true });
   }
 }
 
@@ -344,10 +344,17 @@ function updateJumpRamps(dt) {
   const indexWindow = Math.max(1, Math.round((arcHalf / track.curve.getLength()) * pts.length));
   const carIndex = nearestCenterIndex(track, carController.group.position);
   for (const ramp of jumpRamps) {
-    if (ramp.cooldown > 0) { ramp.cooldown -= dt; continue; }
-    if (circularIndexDist(carIndex, ramp.index, pts.length) <= indexWindow && !carController.airborne) {
+    const inZone = circularIndexDist(carIndex, ramp.index, pts.length) <= indexWindow;
+    if (!inZone) {
+      // 台の範囲から出たら再度ジャンプできるようにする(時間経過ではなく
+      // 範囲を出たかどうかで管理し、コーナーで詰まって同じ場所に留まった時に
+      // 何度も連続でジャンプし続けてしまうのを防ぐ)
+      ramp.armed = true;
+      continue;
+    }
+    if (ramp.armed && !carController.airborne) {
       carController.triggerJump();
-      ramp.cooldown = 1.2;
+      ramp.armed = false;
     }
   }
 }
@@ -1097,6 +1104,14 @@ document.getElementById('install-dismiss').addEventListener('click', () => {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+  // 新しいバージョンのSWが有効になった瞬間に1回だけ自動リロードし、
+  // 古いキャッシュのコードがいつまでも表示され続けないようにする。
+  let refreshedOnce = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshedOnce) return;
+    refreshedOnce = true;
+    window.location.reload();
   });
 }
 
