@@ -325,7 +325,9 @@ function setupJumpRamps() {
 
 function updateJumpRamps(dt) {
   if (!carController) return;
-  const pickupDist = (COLLISION_DIST_BY_TYPE[currentStage.trackType] || 2.4) * 0.65;
+  // 道幅に対する割合で当たり判定を決める(道の中心にドンピシャで
+  // 乗らないと反応しないと手動運転では実質使えないため、広めに取る)
+  const pickupDist = track.roadWidth * 0.8;
   for (const ramp of jumpRamps) {
     if (ramp.cooldown > 0) { ramp.cooldown -= dt; continue; }
     const dist = ramp.position.distanceTo(carController.group.position);
@@ -368,7 +370,7 @@ function setupSpeedPads() {
 
 function updateSpeedPads(dt) {
   if (!carController) return;
-  const pickupDist = (COLLISION_DIST_BY_TYPE[currentStage.trackType] || 2.4) * 0.7;
+  const pickupDist = track.roadWidth * 0.8;
   for (const pad of speedPads) {
     pad.pulse += dt * 4;
     pad.mesh.material.emissiveIntensity = 1.0 + Math.sin(pad.pulse) * 0.4;
