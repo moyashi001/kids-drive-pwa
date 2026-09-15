@@ -1,5 +1,5 @@
 // キャッシュを更新する際はこのバージョン文字列を必ずインクリメントすること
-const VERSION = 'v30';
+const VERSION = 'v31';
 const CACHE_NAME = `kids-drive-pwa-${VERSION}`;
 
 const CAR_IDS = [
@@ -100,10 +100,30 @@ self.addEventListener('activate', event => {
   );
 });
 
+// コード本体(html/js/css)は「ネットワーク優先」にする。
+// 3Dモデルや画像などの重いアセットは変わらないのでキャッシュ優先のままでよいが、
+// ゲームのロジック自体をキャッシュ優先にすると、デプロイし直しても古いバージョンが
+// 端末に残り続けてしまい、修正がなかなか反映されない原因になっていたため。
+function isCodeAsset(pathname) {
+  return /\.(html?|js|css)$/.test(pathname) || pathname === '/' || pathname.endsWith('/');
+}
+
 self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
-  if (new URL(req.url).origin !== self.location.origin) return;
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
+
+  if (isCodeAsset(url.pathname)) {
+    event.respondWith(
+      fetch(req).then(res => {
+        const resClone = res.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(req, resClone));
+        return res;
+      }).catch(() => caches.match(req))
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(req).then(cached => {
