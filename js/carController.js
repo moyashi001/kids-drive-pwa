@@ -1,5 +1,5 @@
 import * as THREE from '../lib/three/build/three.module.js';
-import { roadOffsetRatio, clampToTrackBounds } from './track.js';
+import { roadOffsetRatio, clampToTrackBounds, sampleTrackHeight } from './track.js';
 
 // Kenney車モデルの正面方向を我々の前進定義(forward = (sin(h),0,cos(h)))に合わせるための補正角。
 // Kenney "Car Kit"はモデルの前面が元々+Z方向を向いており0でよいが、
@@ -23,6 +23,11 @@ const BRAKE_DECEL = 34;
 const FRICTION = 10;
 const TURN_RATE = 2.4;         // rad/秒 (最大)
 const OFFROAD_DRAG = 0.45;
+const SLOPE_SPEED_FACTOR = 5; // 坂の勾配ぶん、下りは加速・上りは減速させる強さ
+const MAX_PITCH = 0.4;         // 車体の傾き(ラジアン)の上限
+const GRAVITY_BASE = 30;       // ジャンプ台で飛んだ後の落下加速度(worldScale倍する)
+const JUMP_FORCE_BASE = 13;    // ジャンプ台の初速(worldScale倍する)
+const SPEED_PAD_MULTIPLIER = 1.35; // スピードパッド踏んでいる間の速度倍率
 
 export class CarController {
   // worldScale: ステージ(コース)のスケールに合わせて速度感を調整する係数。
@@ -58,6 +63,25 @@ export class CarController {
     // とくぎ発動中に一時的に強化するための倍率(main.jsのcarSkillsから操作する)
     this.boostMultiplier = 1;
     this.turnBoostMultiplier = 1;
+
+    // ジャンプ台(空中にいる間は坂の高さ追従を止めて自由落下させる)
+    this.airborne = false;
+    this.velocityY = 0;
+
+    // スピードパッド(踏んでいる間だけ速度アップ)
+    this.padBoostTimer = 0;
+  }
+
+  // ジャンプ台に触れた時にmain.jsから呼ぶ
+  triggerJump(forceMul = 1) {
+    if (this.airborne) return;
+    this.airborne = true;
+    this.velocityY = JUMP_FORCE_BASE * this.worldScale * forceMul;
+  }
+
+  // スピードパッドに触れた時にmain.jsから呼ぶ
+  triggerSpeedPad(duration = 1.2) {
+    this.padBoostTimer = Math.max(this.padBoostTimer, duration);
   }
 
   setPosition(vec3, heading) {
@@ -101,21 +125,28 @@ export class CarController {
     const tangent = track.curve.getTangentAt(this.autoU);
     const targetHeading = Math.atan2(tangent.x, tangent.z);
     this.heading = smoothAngle(this.heading, targetHeading, 6, dt);
-    this.position.copy(point);
+    this.position.copy(point); // curveが3D(坂道つき)なら高さも自動で追従する
     this.speed = AUTO_SPEED;
+
+    const pitch = Math.atan2(tangent.y, Math.hypot(tangent.x, tangent.z));
+    this.model.rotation.x = THREE.MathUtils.clamp(-pitch, -MAX_PITCH, MAX_PITCH);
   }
 
   updateManual(dt, track) {
+    if (this.padBoostTimer > 0) this.padBoostTimer -= dt;
+    const padMul = this.padBoostTimer > 0 ? SPEED_PAD_MULTIPLIER : 1;
+    const totalBoost = this.boostMultiplier * padMul;
+
     const offRoadRatio = roadOffsetRatio(track, this.position);
     const offRoad = offRoadRatio > 1;
     const dragMul = offRoad ? OFFROAD_DRAG : 1;
     const s = this.worldScale;
 
-    const maxSpeed = MAX_SPEED * s * this.meta.speed * dragMul * this.boostMultiplier;
+    const maxSpeed = MAX_SPEED * s * this.meta.speed * dragMul * totalBoost;
     const maxReverse = MAX_REVERSE_SPEED * s * dragMul;
 
     if (this.throttleInput > 0.01) {
-      this.speed += ACCEL * s * this.meta.speed * dragMul * this.boostMultiplier * dt * this.throttleInput;
+      this.speed += ACCEL * s * this.meta.speed * dragMul * totalBoost * dt * this.throttleInput;
     } else if (this.throttleInput < -0.01) {
       if (this.speed > 0) {
         this.speed -= BRAKE_DECEL * s * dt * -this.throttleInput;
@@ -143,6 +174,25 @@ export class CarController {
     // すり抜けられないようにする。ぶつかった時は少し減速させて壁っぽさを出す。
     if (clampToTrackBounds(track, this.position)) {
       this.speed *= 0.6;
+    }
+
+    const { y: targetY, pitch } = sampleTrackHeight(track, this.position);
+    if (this.airborne) {
+      // ジャンプ台で飛んでいる間は坂の高さ追従を止め、自由落下させる
+      this.velocityY -= GRAVITY_BASE * s * dt;
+      this.position.y += this.velocityY * dt;
+      this.model.rotation.x = THREE.MathUtils.clamp(-this.velocityY * 0.02, -MAX_PITCH * 1.5, MAX_PITCH * 1.5);
+      if (this.position.y <= targetY) {
+        this.position.y = targetY;
+        this.airborne = false;
+        this.velocityY = 0;
+      }
+    } else {
+      // 坂道: コース上の高さに追従させ、上りは減速・下りは加速。車体も勾配ぶん傾ける。
+      const heightDelta = targetY - this.position.y;
+      this.speed -= heightDelta * SLOPE_SPEED_FACTOR * s;
+      this.position.y = targetY;
+      this.model.rotation.x = THREE.MathUtils.clamp(-pitch, -MAX_PITCH, MAX_PITCH);
     }
   }
 }

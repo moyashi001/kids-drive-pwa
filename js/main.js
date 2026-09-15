@@ -201,7 +201,7 @@ function initScene() {
 
 // 昼の草原/街コース向けの既定の空気感。ステージ側でthemeを指定しない場合はこれを使う
 const DEFAULT_THEME = {
-  sky: 0x8fd4f8, fogNear: 120, fogFar: 220,
+  sky: 0x8fd4f8, fogNear: 170, fogFar: 310,
   hemiSky: 0xffffff, hemiGround: 0x6a9e39, hemiIntensity: 0.9,
   sunColor: 0xffffff, sunIntensity: 1.1,
 };
@@ -226,6 +226,8 @@ async function ensureTrack() {
     : createTrack(currentStage.layout);
   scene.add(track.group);
   setupItemBoxes();
+  setupJumpRamps();
+  setupSpeedPads();
   setupStartLineDecor();
   trackDirty = false;
 }
@@ -279,6 +281,100 @@ function updateItemBoxes(dt) {
         box.active = true;
         box.mesh.visible = true;
       }
+    }
+  }
+}
+
+// ---------- ジャンプ台(触れると宙に飛ぶ) ----------
+const JUMP_RAMP_US = [0.2, 0.62];
+let jumpRamps = [];
+
+function buildRampMesh(width, s) {
+  const g = new THREE.Group();
+  const rampMat = new THREE.MeshLambertMaterial({ color: 0xffb300 });
+  const ramp = new THREE.Mesh(new THREE.BoxGeometry(width * 0.6, 0.3 * s, 4.5 * s), rampMat);
+  ramp.rotation.x = -Math.PI / 7;
+  ramp.position.y = 0.5 * s;
+  g.add(ramp);
+  // 黒黄の縞模様アクセント
+  const stripeMat = new THREE.MeshBasicMaterial({ color: 0x1a1a1a });
+  for (let i = -1; i <= 1; i += 2) {
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(width * 0.6, 0.32 * s, 0.5 * s), stripeMat);
+    stripe.rotation.x = -Math.PI / 7;
+    stripe.position.set(0, 0.5 * s + i * 1.1 * s * Math.sin(Math.PI / 7), i * 1.1 * s * Math.cos(Math.PI / 7));
+    g.add(stripe);
+  }
+  return g;
+}
+
+function setupJumpRamps() {
+  jumpRamps.forEach(r => track.group.remove(r.mesh));
+  jumpRamps = [];
+  const s = currentStage.worldScale || 1;
+  for (const u of JUMP_RAMP_US) {
+    const p = track.curve.getPointAt(u);
+    const tangent = track.curve.getTangentAt(u);
+    const angle = Math.atan2(tangent.x, tangent.z);
+    const mesh = buildRampMesh(track.roadWidth, s);
+    mesh.position.copy(p);
+    mesh.rotation.y = angle;
+    track.group.add(mesh);
+    jumpRamps.push({ mesh, position: p.clone(), cooldown: 0 });
+  }
+}
+
+function updateJumpRamps(dt) {
+  if (!carController) return;
+  const pickupDist = (COLLISION_DIST_BY_TYPE[currentStage.trackType] || 2.4) * 0.65;
+  for (const ramp of jumpRamps) {
+    if (ramp.cooldown > 0) { ramp.cooldown -= dt; continue; }
+    const dist = ramp.position.distanceTo(carController.group.position);
+    if (dist < pickupDist && !carController.airborne) {
+      carController.triggerJump();
+      ramp.cooldown = 1.2;
+    }
+  }
+}
+
+// ---------- スピードパッド(踏むと一定時間だけ速度アップ) ----------
+const SPEED_PAD_US = [0.45, 0.9];
+let speedPads = [];
+
+function buildSpeedPadMesh(width, s) {
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x29b6f6, emissive: 0x29b6f6, emissiveIntensity: 1.3,
+    side: THREE.DoubleSide, transparent: true, opacity: 0.9,
+  });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width * 0.75, 3.2 * s), mat);
+  mesh.rotation.x = -Math.PI / 2;
+  return mesh;
+}
+
+function setupSpeedPads() {
+  speedPads.forEach(p => track.group.remove(p.mesh));
+  speedPads = [];
+  const s = currentStage.worldScale || 1;
+  for (const u of SPEED_PAD_US) {
+    const p = track.curve.getPointAt(u);
+    const tangent = track.curve.getTangentAt(u);
+    const angle = Math.atan2(tangent.x, tangent.z);
+    const mesh = buildSpeedPadMesh(track.roadWidth, s);
+    mesh.position.copy(p).add(new THREE.Vector3(0, 0.05 * s, 0));
+    mesh.rotation.z = angle;
+    track.group.add(mesh);
+    speedPads.push({ mesh, position: p.clone(), pulse: Math.random() * Math.PI * 2 });
+  }
+}
+
+function updateSpeedPads(dt) {
+  if (!carController) return;
+  const pickupDist = (COLLISION_DIST_BY_TYPE[currentStage.trackType] || 2.4) * 0.7;
+  for (const pad of speedPads) {
+    pad.pulse += dt * 4;
+    pad.mesh.material.emissiveIntensity = 1.0 + Math.sin(pad.pulse) * 0.4;
+    const dist = pad.position.distanceTo(carController.group.position);
+    if (dist < pickupDist) {
+      carController.triggerSpeedPad();
     }
   }
 }
@@ -947,6 +1043,8 @@ function loop(now) {
     updateSkillSparkles(dt);
     updateSkill(dt);
     updateItemBoxes(dt);
+    updateJumpRamps(dt);
+    updateSpeedPads(dt);
     updateCamera(dt);
     updateEngineSound(carController.speed / (26 * (currentStage.worldScale || 1)));
   }

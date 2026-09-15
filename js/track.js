@@ -18,15 +18,18 @@ export const PALETTE = {
 const ROAD_WIDTH = 11;
 const CURB_WIDTH = 1.2;
 
-// クローズドループのコース制御点(XZ平面、Yは常に0)。そうげんループの既定コース
+// クローズドループのコース制御点。そうげんループの既定コース。
+// 各点は[x, z]または高さ付きの[x, z, y]。1周を約2倍にするため、
+// 元の形はそのままに全体を約1.9倍に拡大し、いくつかの点にyを与えて
+// なだらかな坂(丘)を作っている。
 const DEFAULT_CONTROL_POINTS = [
-  [0, -46], [26, -50], [48, -38], [56, -14], [50, 10],
-  [30, 22], [30, 40], [10, 52], [-18, 48], [-34, 30],
-  [-30, 8], [-46, -4], [-54, -26], [-38, -46], [-16, -50],
+  [0, -87.4], [49.4, -95], [91.2, -72.2], [106.4, -26.6], [95, 19],
+  [57, 41.8, 17], [57, 76, 21], [19, 98.8], [-34.2, 91.2], [-64.6, 57],
+  [-57, 15.2], [-87.4, -7.6, 10], [-102.6, -49.4], [-72.2, -87.4], [-30.4, -95],
 ];
 
 function buildControlPoints(points) {
-  return (points || DEFAULT_CONTROL_POINTS).map(([x, z]) => new THREE.Vector3(x, 0, z));
+  return (points || DEFAULT_CONTROL_POINTS).map(([x, z, y]) => new THREE.Vector3(x, y || 0, z));
 }
 
 /**
@@ -42,6 +45,11 @@ export function createTrack(def = {}) {
   const uSamples = [];
   for (let i = 0; i <= SEGMENTS; i++) uSamples.push(i / SEGMENTS);
   const centerPts = uSamples.map(u => curve.getPointAt(u));
+
+  // コースの大まかな広がり(原点からの最大距離)。山・雲・木の配置を
+  // コースの規模に自動で合わせるための基準値として使う。
+  let maxReach = 0;
+  for (const p of centerPts) maxReach = Math.max(maxReach, Math.hypot(p.x, p.z));
 
   // ---- 道路メッシュ (帯状のリボン) ----
   const roadPositions = [];
@@ -74,12 +82,14 @@ export function createTrack(def = {}) {
     curbROuter.push(rOuter);
   }
 
-  function ribbon(edgeA, edgeB, y = 0.01) {
+  // yOffsetは各点自身の高さ(坂道用)に上乗せする微小オフセット。
+  // 以前は固定Yで平坦前提だったが、坂道対応のため点ごとの高さを使うよう変更。
+  function ribbon(edgeA, edgeB, yOffset = 0.01) {
     const positions = [];
     const indices = [];
     for (let i = 0; i < edgeA.length; i++) {
-      positions.push(edgeA[i].x, y, edgeA[i].z);
-      positions.push(edgeB[i].x, y, edgeB[i].z);
+      positions.push(edgeA[i].x, edgeA[i].y + yOffset, edgeA[i].z);
+      positions.push(edgeB[i].x, edgeB[i].y + yOffset, edgeB[i].z);
     }
     const count = edgeA.length;
     for (let i = 0; i < count - 1; i++) {
@@ -109,6 +119,14 @@ export function createTrack(def = {}) {
   group.add(buildFence(curbLOuter));
   group.add(buildFence(curbROuter));
 
+  // ---- 盛り土(坂で道が高くなった区間の下に、地面までのスロープを張って
+  // 道が宙に浮いて見えないようにする。平坦な区間ではほぼ薄いだけで目立たない) ----
+  const dirtMat = new THREE.MeshLambertMaterial({ color: PALETTE.dirt, side: THREE.DoubleSide });
+  const embankL = curbLOuter.map(p => new THREE.Vector3(p.x, Math.min(p.y - 0.4, -1.5), p.z));
+  const embankR = curbROuter.map(p => new THREE.Vector3(p.x, Math.min(p.y - 0.4, -1.5), p.z));
+  group.add(new THREE.Mesh(ribbon(curbLOuter, embankL, 0), dirtMat));
+  group.add(new THREE.Mesh(ribbon(curbROuter, embankR, 0), dirtMat.clone()));
+
   // ---- センターライン (破線) ----
   const dashGeo = new THREE.BoxGeometry(0.5, 0.03, 1.6);
   const dashMat = new THREE.MeshBasicMaterial({ color: PALETTE.roadLine });
@@ -119,7 +137,7 @@ export function createTrack(def = {}) {
     const p = centerPts[i];
     const pNext = centerPts[(i + 1) % centerPts.length];
     const angle = Math.atan2(pNext.x - p.x, pNext.z - p.z);
-    dummy.position.set(p.x, 0.05, p.z);
+    dummy.position.set(p.x, p.y + 0.05, p.z);
     dummy.rotation.set(0, angle, 0);
     dummy.updateMatrix();
     dashMesh.setMatrixAt(dashCount++, dummy.matrix);
@@ -128,9 +146,11 @@ export function createTrack(def = {}) {
   group.add(dashMesh);
 
   // ---- 地面(草) ----
-  // 半径はフォグの終端(240)より大きくして、地面の縁がフォグの手前で
-  // 途切れて空との境界線が見えてしまわないようにする
-  const groundGeo = new THREE.CircleGeometry(300, 48);
+  // 半径はフォグの終端より大きくして、地面の縁がフォグの手前で
+  // 途切れて空との境界線が見えてしまわないようにする。コースが大きい
+  // ステージ(maxReachが大きい)では地面もそれに応じて広げる。
+  const groundRadius = Math.max(300, maxReach * 3.2);
+  const groundGeo = new THREE.CircleGeometry(groundRadius, 48);
   const groundMat = new THREE.MeshLambertMaterial({ color: PALETTE.grass });
   const ground = new THREE.Mesh(groundGeo, groundMat);
   ground.rotation.x = -Math.PI / 2;
@@ -139,7 +159,7 @@ export function createTrack(def = {}) {
   group.add(ground);
 
   // うっすら模様(芝生のブロック感)
-  const patchGeo = new THREE.RingGeometry(30, 300, 48, 6);
+  const patchGeo = new THREE.RingGeometry(30, groundRadius, 48, 6);
   const patchMat = new THREE.MeshBasicMaterial({ color: PALETTE.grassDark, transparent: true, opacity: 0.18, side: THREE.DoubleSide });
   const patch = new THREE.Mesh(patchGeo, patchMat);
   patch.rotation.x = -Math.PI / 2;
@@ -171,10 +191,14 @@ export function createTrack(def = {}) {
   group.add(decorGroup);
 
   // ---- 簡易な木(デコレーション、外周にぐるっと配置) ----
-  const TREE_COUNT = 42;
+  // 本数はコースの規模(周長)に応じて増減させ、大きいコースでもスカスカに
+  // 見えないようにする
+  const TREE_COUNT = Math.round(42 * Math.max(1, maxReach / 62));
+  const treeRadiusBase = maxReach * 1.62;
+  const treeRadiusVar = maxReach * 0.3;
   for (let i = 0; i < TREE_COUNT; i++) {
     const angle = (i / TREE_COUNT) * Math.PI * 2;
-    const radius = 95 + Math.sin(i * 3.1) * 18;
+    const radius = treeRadiusBase + Math.sin(i * 3.1) * treeRadiusVar;
     const x = Math.cos(angle) * radius;
     const z = Math.sin(angle) * radius;
     const tree = buildTree();
@@ -188,11 +212,12 @@ export function createTrack(def = {}) {
   group.add(scatterRoadside(centerPts, curbLOuter));
   group.add(scatterRoadside(centerPts, curbROuter));
 
-  // ---- 背景の奥行き(遠景の山・雲・飛行船) ----
-  group.add(buildMountainRing(230, 22, def.mountainColor || 0x6b7d5a));
-  group.add(buildClouds(190, 11));
+  // ---- 背景の奥行き(遠景の山・雲・飛行船。コースの規模に合わせて配置半径を決める。
+  // フォグの範囲内に収まるよう、ステージ側のtheme.fogFarと合わせて調整すること) ----
+  group.add(buildMountainRing(maxReach * 2.0, Math.round(22 * Math.max(1, maxReach / 62)), def.mountainColor || 0x6b7d5a));
+  group.add(buildClouds(maxReach * 1.7, 11));
   const blimp = buildBlimp(def.blimpColor || 0xe0483e, 0xffffff, 2.2);
-  blimp.position.set(-60, 75, -170);
+  blimp.position.set(-maxReach * 0.6, maxReach * 0.5, -maxReach * 1.7);
   blimp.rotation.y = Math.PI / 5;
   group.add(blimp);
 
@@ -275,7 +300,7 @@ function buildFence(edgePoints) {
   let idx = 0;
   for (let i = 0; i < edgePoints.length; i += step) {
     const p = edgePoints[i];
-    dummy.position.set(p.x, 0.5, p.z);
+    dummy.position.set(p.x, p.y + 0.5, p.z);
     dummy.updateMatrix();
     postMesh.setMatrixAt(idx++, dummy.matrix);
   }
@@ -285,7 +310,7 @@ function buildFence(edgePoints) {
   const railMat = new THREE.MeshLambertMaterial({ color: 0xf2f2f2 });
   [0.85, 0.45].forEach(h => {
     const railCurve = new THREE.CatmullRomCurve3(
-      edgePoints.map(p => new THREE.Vector3(p.x, h, p.z)), true, 'catmullrom', 0.55
+      edgePoints.map(p => new THREE.Vector3(p.x, p.y + h, p.z)), true, 'catmullrom', 0.55
     );
     const railGeo = new THREE.TubeGeometry(railCurve, edgePoints.length, 0.05, 6, true);
     g.add(new THREE.Mesh(railGeo, railMat));
@@ -313,7 +338,7 @@ function scatterRoadside(centerPts, edgePoints) {
       ? new THREE.Mesh(new THREE.DodecahedronGeometry(0.45 + Math.random() * 0.35, 0), rockMat)
       : new THREE.Mesh(new THREE.SphereGeometry(0.55 + Math.random() * 0.45, 6, 5), bushMat);
     mesh.position.copy(pos);
-    mesh.position.y = isRock ? 0.25 : 0.5;
+    mesh.position.y = edge.y + (isRock ? 0.25 : 0.5);
     mesh.rotation.y = Math.random() * Math.PI * 2;
     group.add(mesh);
   }
@@ -352,6 +377,27 @@ export function roadOffsetRatio(track, position) {
   }
   const dist = Math.sqrt(minDist);
   return dist / (track.roadWidth / 2);
+}
+
+// 現在位置に一番近いコース上の高さと、その付近の勾配(ピッチ角)を返す。
+// 坂道で車のY座標・傾きを追従させるために使う。
+export function sampleTrackHeight(track, position) {
+  const pts = track.centerPts;
+  let bestI = 0;
+  let bestDist = Infinity;
+  const step = 2;
+  for (let i = 0; i < pts.length; i += step) {
+    const dx = pts[i].x - position.x;
+    const dz = pts[i].z - position.z;
+    const d = dx * dx + dz * dz;
+    if (d < bestDist) { bestDist = d; bestI = i; }
+  }
+  const spread = 4;
+  const next = pts[(bestI + spread) % pts.length];
+  const prev = pts[(bestI - spread + pts.length) % pts.length];
+  const horizDist = Math.hypot(next.x - prev.x, next.z - prev.z) || 1;
+  const pitch = Math.atan2(next.y - prev.y, horizDist);
+  return { y: pts[bestI].y, pitch };
 }
 
 // ガードレール(fenceRadius)より外に出ないよう位置をクランプする。
