@@ -48,6 +48,16 @@ export const CAR_SKILLS = {
   'tractor-shovel': { icon: '💥', name: 'なぎはらい', kind: 'ram', duration: DURATION, speedMul: 1.2, radiusMul: 2.2 },
   'vehicle-truck': { icon: '💥', name: 'たいあたり', kind: 'ram', duration: DURATION, speedMul: 1.25, radiusMul: 1.8 },
   'vehicle-monster-truck': { icon: '💥', name: 'モンスターアタック', kind: 'ram', duration: DURATION, speedMul: 1.3, radiusMul: 2.2 },
+
+  // ---- ペット: ダッシュ(アイテムボックスでも使えるよう、車と同じくboost系にする) ----
+  'pet-dog': { icon: '🐾', name: 'わんこダッシュ', kind: 'boost', duration: DURATION, speedMul: 1.35 },
+  'pet-cat': { icon: '🐾', name: 'ねこダッシュ', kind: 'boost', duration: DURATION, speedMul: 1.4 },
+  'pet-fox': { icon: '🐾', name: 'きつねダッシュ', kind: 'boost', duration: DURATION, speedMul: 1.4 },
+  'pet-bunny': { icon: '🐾', name: 'ぴょんぴょんダッシュ', kind: 'boost', duration: DURATION, speedMul: 1.45 },
+  'pet-panda': { icon: '🐾', name: 'パンダダッシュ', kind: 'boost', duration: DURATION, speedMul: 1.2 },
+  'pet-tiger': { icon: '🐾', name: 'とらダッシュ', kind: 'boost', duration: DURATION, speedMul: 1.35 },
+  'pet-lion': { icon: '🐾', name: 'ライオンダッシュ', kind: 'boost', duration: DURATION, speedMul: 1.3 },
+  'pet-elephant': { icon: '🐾', name: 'ぞうダッシュ', kind: 'boost', duration: DURATION, speedMul: 1.15 },
 };
 
 export function getCarSkill(carId) {

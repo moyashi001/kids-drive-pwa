@@ -225,7 +225,118 @@ async function ensureTrack() {
     ? await createCityTrack(currentStage.layout)
     : createTrack(currentStage.layout);
   scene.add(track.group);
+  setupItemBoxes();
+  setupStartLineDecor();
   trackDirty = false;
+}
+
+// ---------- アイテムボックス(コース上に浮かせ、通ると即座にとくぎが発動する) ----------
+const ITEM_BOX_US = [0.08, 0.33, 0.58, 0.82]; // コース上に4個、均等っぽく配置
+let itemBoxes = [];
+
+function buildItemBoxMesh(s) {
+  const geo = new THREE.OctahedronGeometry(0.9 * s, 0);
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffd23f, emissive: 0xffb300, emissiveIntensity: 1.3 });
+  return new THREE.Mesh(geo, mat);
+}
+
+function setupItemBoxes() {
+  itemBoxes.forEach(b => track.group.remove(b.mesh));
+  itemBoxes = [];
+  const s = currentStage.worldScale || 1;
+  for (const u of ITEM_BOX_US) {
+    const p = track.curve.getPointAt(u);
+    const mesh = buildItemBoxMesh(s);
+    mesh.position.copy(p).add(new THREE.Vector3(0, 1.3 * s, 0));
+    track.group.add(mesh);
+    itemBoxes.push({ mesh, active: true, respawnTimer: 0, spin: 1.6 + Math.random() * 0.8 });
+  }
+}
+
+function pickUpItemBox() {
+  if (!currentSkill) return;
+  skillGauge = 1;
+  activateSkill();
+}
+
+function updateItemBoxes(dt) {
+  if (!carController) return;
+  const pickupDist = COLLISION_DIST_BY_TYPE[currentStage.trackType] || 2.4;
+  for (const box of itemBoxes) {
+    if (box.active) {
+      box.mesh.rotation.y += dt * box.spin;
+      box.mesh.rotation.x += dt * box.spin * 0.6;
+      const dist = box.mesh.position.distanceTo(carController.group.position);
+      if (dist < pickupDist) {
+        box.active = false;
+        box.mesh.visible = false;
+        box.respawnTimer = 6;
+        pickUpItemBox();
+      }
+    } else {
+      box.respawnTimer -= dt;
+      if (box.respawnTimer <= 0) {
+        box.active = true;
+        box.mesh.visible = true;
+      }
+    }
+  }
+}
+
+// ---------- スタートライン演出(チェッカー柄+旗) ----------
+function buildCheckeredStartLine(width, s) {
+  const g = new THREE.Group();
+  const cols = 8;
+  const cellSize = width / cols;
+  for (let i = 0; i < cols; i++) {
+    for (let j = 0; j < 2; j++) {
+      const color = (i + j) % 2 === 0 ? 0x141414 : 0xffffff;
+      const cell = new THREE.Mesh(
+        new THREE.BoxGeometry(cellSize * 0.96, 0.04 * s, cellSize * 0.96),
+        new THREE.MeshBasicMaterial({ color })
+      );
+      cell.position.set((i - cols / 2 + 0.5) * cellSize, 0.03 * s, (j - 0.5) * cellSize);
+      g.add(cell);
+    }
+  }
+  return g;
+}
+
+function buildStartFlags(width, s) {
+  const g = new THREE.Group();
+  const poleMat = new THREE.MeshLambertMaterial({ color: 0xf2f2f2 });
+  const flagColors = [0xff5252, 0xffeb3b, 0x42a5f5, 0x66bb6a];
+  [-1, 1].forEach(side => {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08 * s, 0.1 * s, 3.2 * s, 6), poleMat);
+    pole.position.set(side * (width / 2 + 0.6 * s), 1.6 * s, 0);
+    g.add(pole);
+    for (let i = 0; i < 3; i++) {
+      const flag = new THREE.Mesh(
+        new THREE.ConeGeometry(0.32 * s, 0.5 * s, 3),
+        new THREE.MeshLambertMaterial({ color: flagColors[i % flagColors.length] })
+      );
+      flag.rotation.z = Math.PI / 2;
+      flag.rotation.y = Math.PI / 2;
+      flag.position.set(side * (width / 2 + 0.6 * s + 0.26 * s), 2.6 * s - i * 0.55 * s, 0);
+      g.add(flag);
+    }
+  });
+  return g;
+}
+
+function setupStartLineDecor() {
+  const s = currentStage.worldScale || 1;
+  const width = track.roadWidth;
+  const checker = buildCheckeredStartLine(width, s);
+  const flags = buildStartFlags(width, s);
+  const group = new THREE.Group();
+  group.add(checker, flags);
+  // そうげん/ワインディングは既存のスタートゲートがstartPositionにあるため、
+  // 少し手前(進行方向にオフセット)にずらして重ならないようにする
+  const forward = new THREE.Vector3(Math.sin(track.startAngle), 0, Math.cos(track.startAngle));
+  group.position.copy(track.startPosition).addScaledVector(forward, 5 * s);
+  group.rotation.y = track.startAngle;
+  track.group.add(group);
 }
 
 function onResize() {
@@ -835,6 +946,7 @@ function loop(now) {
     updateSirenRings(dt);
     updateSkillSparkles(dt);
     updateSkill(dt);
+    updateItemBoxes(dt);
     updateCamera(dt);
     updateEngineSound(carController.speed / (26 * (currentStage.worldScale || 1)));
   }

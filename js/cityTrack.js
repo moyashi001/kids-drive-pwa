@@ -1,5 +1,6 @@
 import * as THREE from '../lib/three/build/three.module.js';
 import { GLTFLoader } from '../lib/three/examples/jsm/loaders/GLTFLoader.js';
+import { buildClouds, buildBlimp } from './skyDecor.js';
 
 // city-kit-roads / city-kit-industrial (Kenney, CC0) のタイル1個ぶんのワールドサイズ。
 // タイル本体は1x1で作られているため、この倍率で拡大してtoy-car-kitの車とスケールを合わせる。
@@ -126,6 +127,21 @@ export async function createCityTrack(def) {
       decorGroup.add(light);
     }
     decorGroup.add(mesh);
+  }
+
+  // ---- 背景の奥行き(空の雲・飛行船) ----
+  const centerX = def.groundCenter ? def.groundCenter[0] * TILE_SCALE : 0;
+  const centerZ = def.groundCenter ? def.groundCenter[1] * TILE_SCALE : 0;
+  if (def.showClouds) {
+    const clouds = buildClouds(72, 7);
+    clouds.position.set(centerX, 0, centerZ);
+    decorGroup.add(clouds);
+  }
+  if (def.blimpColor) {
+    const blimp = buildBlimp(def.blimpColor, 0xffffff, def.blimpScale || 0.8);
+    blimp.position.set(centerX - 32, 30, centerZ - 42);
+    blimp.rotation.y = Math.PI / 4;
+    decorGroup.add(blimp);
   }
 
   // 走行経路: タイル配置に沿ったグリッド座標の折れ線から閉曲線を作る

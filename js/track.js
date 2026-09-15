@@ -1,4 +1,5 @@
 import * as THREE from '../lib/three/build/three.module.js';
+import { buildMountainRing, buildClouds, buildBlimp } from './skyDecor.js';
 
 // Kenney "3D Road Tiles" 風のフラットカラーを再現したパレット
 export const PALETTE = {
@@ -187,11 +188,23 @@ export function createTrack(def = {}) {
   group.add(scatterRoadside(centerPts, curbLOuter));
   group.add(scatterRoadside(centerPts, curbROuter));
 
+  // ---- 背景の奥行き(遠景の山・雲・飛行船) ----
+  group.add(buildMountainRing(230, 22, def.mountainColor || 0x6b7d5a));
+  group.add(buildClouds(190, 11));
+  const blimp = buildBlimp(def.blimpColor || 0xe0483e, 0xffffff, 2.2);
+  blimp.position.set(-60, 75, -170);
+  blimp.rotation.y = Math.PI / 5;
+  group.add(blimp);
+
   return {
     group,
     curve,
     centerPts,
     roadWidth: ROAD_WIDTH,
+    // ガードレール(縁石の外側)の位置。carController側でこの半径より外に
+    // 出られないようクランプする(すり抜け防止)。タイル系ステージには
+    // ガードレールが無いのでこのフィールド自体を返さない。
+    fenceRadius: ROAD_WIDTH / 2 + CURB_WIDTH,
     decorGroup,
     startPosition: centerPts[0].clone(),
     startAngle,
@@ -339,4 +352,28 @@ export function roadOffsetRatio(track, position) {
   }
   const dist = Math.sqrt(minDist);
   return dist / (track.roadWidth / 2);
+}
+
+// ガードレール(fenceRadius)より外に出ないよう位置をクランプする。
+// ガードレールが無いステージ(track.fenceRadiusが未定義、タイル系コースなど)では
+// 何もしない。戻り値はガードレールに衝突したかどうか(衝突時の減速演出に使う)。
+export function clampToTrackBounds(track, position) {
+  if (!track.fenceRadius) return false;
+  const pts = track.centerPts;
+  let bestI = 0;
+  let bestDist = Infinity;
+  const step = 2;
+  for (let i = 0; i < pts.length; i += step) {
+    const d = pts[i].distanceToSquared(position);
+    if (d < bestDist) { bestDist = d; bestI = i; }
+  }
+  const center = pts[bestI];
+  const dx = position.x - center.x;
+  const dz = position.z - center.z;
+  const dist = Math.hypot(dx, dz);
+  if (dist <= track.fenceRadius) return false;
+  const scale = track.fenceRadius / dist;
+  position.x = center.x + dx * scale;
+  position.z = center.z + dz * scale;
+  return true;
 }

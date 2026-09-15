@@ -15,6 +15,8 @@ const CITY_LAYOUT = {
   groundRadius: 8,
   groundCenter: [4, 3.5],
   roadWidthRatio: 0.5,
+  showClouds: true,
+  blimpColor: 0xffd23f,
   tiles: [
     // 四隅のカーブ(road-curve-pavementはモデル自体が既に2x2タイル分のサイズなので、
     // 他のタイルと同じ TILE_SCALE 倍のままでよい。ここに scale:2 を追加すると
@@ -73,6 +75,15 @@ const CITY_LAYOUT = {
     { type: 'building-f', gx: 9.8, gz: 1.7, rotDeg: -70, scale: 0.6 },
     { type: 'building-b', gx: 9.9, gz: 3.5, rotDeg: -90, scale: 0.65 },
     { type: 'building-d', gx: 9.8, gz: 5.3, rotDeg: -110, scale: 0.6 },
+    // 遠景のビル群(奥行きを出すため、少し霞んだ色に落として一回り大きく配置)
+    { type: 'building-a', gx: 4 + 7 * Math.cos(0), gz: 3.5 + 7 * Math.sin(0), rotDeg: 0, scale: 1.2, tint: 0xa9b0b8 },
+    { type: 'building-c', gx: 4 + 7 * Math.cos(Math.PI / 4), gz: 3.5 + 7 * Math.sin(Math.PI / 4), rotDeg: 45, scale: 1.3, tint: 0xa9b0b8 },
+    { type: 'building-e', gx: 4 + 7 * Math.cos(Math.PI / 2), gz: 3.5 + 7 * Math.sin(Math.PI / 2), rotDeg: 90, scale: 1.2, tint: 0xa9b0b8 },
+    { type: 'building-h', gx: 4 + 7 * Math.cos(3 * Math.PI / 4), gz: 3.5 + 7 * Math.sin(3 * Math.PI / 4), rotDeg: 135, scale: 1.4, tint: 0xa9b0b8 },
+    { type: 'building-k', gx: 4 + 7 * Math.cos(Math.PI), gz: 3.5 + 7 * Math.sin(Math.PI), rotDeg: 180, scale: 1.2, tint: 0xa9b0b8 },
+    { type: 'building-b', gx: 4 + 7 * Math.cos(5 * Math.PI / 4), gz: 3.5 + 7 * Math.sin(5 * Math.PI / 4), rotDeg: 225, scale: 1.3, tint: 0xa9b0b8 },
+    { type: 'building-d', gx: 4 + 7 * Math.cos(3 * Math.PI / 2), gz: 3.5 + 7 * Math.sin(3 * Math.PI / 2), rotDeg: 270, scale: 1.2, tint: 0xa9b0b8 },
+    { type: 'building-f', gx: 4 + 7 * Math.cos(7 * Math.PI / 4), gz: 3.5 + 7 * Math.sin(7 * Math.PI / 4), rotDeg: 315, scale: 1.4, tint: 0xa9b0b8 },
   ],
 };
 
@@ -84,6 +95,8 @@ const CYBER_LAYOUT = {
   groundColor: 0x24243a,
   groundRadius: 8,
   groundCenter: [4, 3.5],
+  blimpColor: 0x00e5ff,
+  blimpScale: 0.6,
   roadWidthRatio: 0.5,
   tiles: [
     { type: 'road-curve-pavement', gx: 1, gz: 1, rotDeg: 90 },
@@ -214,7 +227,7 @@ export const STAGES = [
     trackType: 'spline',
     carSet: 'kenney',
     worldScale: 1,
-    layout: { controlPoints: WINDING_CONTROL_POINTS, overpassU: 0.28 },
+    layout: { controlPoints: WINDING_CONTROL_POINTS, overpassU: 0.28, mountainColor: 0xad6b4a, blimpColor: 0xf0a020 },
     npcIds: ['sedan-sports', 'hatchback-sports', 'suv', 'garbage-truck', 'tractor', 'pet-fox', 'pet-tiger'],
     theme: {
       sky: 0xffab73,

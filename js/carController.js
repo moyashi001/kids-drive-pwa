@@ -1,5 +1,5 @@
 import * as THREE from '../lib/three/build/three.module.js';
-import { roadOffsetRatio } from './track.js';
+import { roadOffsetRatio, clampToTrackBounds } from './track.js';
 
 // Kenney車モデルの正面方向を我々の前進定義(forward = (sin(h),0,cos(h)))に合わせるための補正角。
 // Kenney "Car Kit"はモデルの前面が元々+Z方向を向いており0でよいが、
@@ -138,6 +138,12 @@ export class CarController {
 
     const forward = this.forwardVector();
     this.position.addScaledVector(forward, this.speed * dt);
+
+    // ガードレールがあるステージでは、外側に出ようとした位置を縁でクランプし、
+    // すり抜けられないようにする。ぶつかった時は少し減速させて壁っぽさを出す。
+    if (clampToTrackBounds(track, this.position)) {
+      this.speed *= 0.6;
+    }
   }
 }
 
