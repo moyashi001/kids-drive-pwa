@@ -1,5 +1,5 @@
 // キャッシュを更新する際はこのバージョン文字列を必ずインクリメントすること
-const VERSION = 'v19';
+const VERSION = 'v22';
 const CACHE_NAME = `kids-drive-pwa-${VERSION}`;
 
 const CAR_IDS = [
@@ -27,6 +27,11 @@ const CYBERPUNK_DECOR_IDS = [
   'antenna-1', 'antenna-2', 'tv-1', 'ac-stacked',
 ];
 
+const PET_IDS = [
+  'pet-dog', 'pet-cat', 'pet-fox', 'pet-bunny',
+  'pet-panda', 'pet-tiger', 'pet-lion', 'pet-elephant',
+];
+
 const CORE_ASSETS = [
   './',
   'index.html',
@@ -40,9 +45,20 @@ const CORE_ASSETS = [
   'js/cityTrack.js',
   'js/carController.js',
   'js/carSkills.js',
+  'js/pets.js',
   'lib/three/build/three.module.js',
   'lib/three/examples/jsm/loaders/GLTFLoader.js',
   'lib/three/examples/jsm/utils/BufferGeometryUtils.js',
+  'lib/three/examples/jsm/postprocessing/EffectComposer.js',
+  'lib/three/examples/jsm/postprocessing/Pass.js',
+  'lib/three/examples/jsm/postprocessing/RenderPass.js',
+  'lib/three/examples/jsm/postprocessing/ShaderPass.js',
+  'lib/three/examples/jsm/postprocessing/MaskPass.js',
+  'lib/three/examples/jsm/postprocessing/UnrealBloomPass.js',
+  'lib/three/examples/jsm/postprocessing/OutputPass.js',
+  'lib/three/examples/jsm/shaders/CopyShader.js',
+  'lib/three/examples/jsm/shaders/OutputShader.js',
+  'lib/three/examples/jsm/shaders/LuminosityHighPassShader.js',
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/icon-192-maskable.png',
@@ -60,6 +76,9 @@ const CORE_ASSETS = [
   ...ROAD_TILE_IDS.map(id => `assets/models/roadtiles/${id}.glb`),
   ...BUILDING_IDS.map(id => `assets/models/buildings/${id}.glb`),
   ...CYBERPUNK_DECOR_IDS.map(id => `assets/models/buildings/cyberpunk/${id}.gltf`),
+  'assets/models/pets/Textures/colormap.png',
+  ...PET_IDS.map(id => `assets/models/pets/${id}.glb`),
+  ...PET_IDS.map(id => `assets/previews/pets/${id}.png`),
 ];
 
 self.addEventListener('install', event => {

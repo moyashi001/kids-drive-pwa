@@ -1,7 +1,12 @@
 import * as THREE from '../lib/three/build/three.module.js';
 import { GLTFLoader } from '../lib/three/examples/jsm/loaders/GLTFLoader.js';
-import { CARS, getCarById } from './cars.js';
-import { TOY_CARS, getToyCarById } from './toyCars.js';
+import { EffectComposer } from '../lib/three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from '../lib/three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from '../lib/three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from '../lib/three/examples/jsm/postprocessing/OutputPass.js';
+import { CARS } from './cars.js';
+import { TOY_CARS } from './toyCars.js';
+import { PETS } from './pets.js';
 import { createTrack } from './track.js';
 import { createCityTrack } from './cityTrack.js';
 import { STAGES } from './stages.js';
@@ -24,16 +29,24 @@ function showScreen(name) {
 // ---------- ステージ管理 ----------
 let currentStage = STAGES[0];
 
+// kenney(車)セットのステージでは、動物の「のりもの」(pets.js)も選択肢に混ぜる。
+// toyセットのステージは今のところ車のみ。
 function getCarSet() {
-  return currentStage.carSet === 'toy' ? TOY_CARS : CARS;
+  return currentStage.carSet === 'toy' ? TOY_CARS : [...CARS, ...PETS];
 }
+// NPCはステージのcarSetに関係なく(例: 車ステージにペットNPCを混ぜる、逆も)
+// どの一覧のidでも解決できるよう、3つの配列すべてから探す。
 function getCarMetaById(id) {
-  return currentStage.carSet === 'toy' ? getToyCarById(id) : getCarById(id);
+  return CARS.find(c => c.id === id) || TOY_CARS.find(c => c.id === id) || PETS.find(c => c.id === id) || getCarSet()[0];
 }
 function getCarModelPath(id) {
+  const meta = getCarMetaById(id);
+  if (meta.folder) return `assets/models/${meta.folder}/${id}.glb`;
   return currentStage.carSet === 'toy' ? `assets/models/toycars/${id}.glb` : `assets/models/cars/${id}.glb`;
 }
 function getCarPreviewPath(id) {
+  const meta = getCarMetaById(id);
+  if (meta.folder) return `assets/previews/${meta.folder}/${id}.png`;
   return currentStage.carSet === 'toy' ? `assets/previews/toycars/${id}.png` : `assets/previews/${id}.png`;
 }
 
@@ -136,6 +149,7 @@ function preloadPreviews(onProgress) {
 
 // ---------- Three.js セットアップ ----------
 let renderer, scene, camera;
+let composer, bloomPass;
 let hemiLight, sunLight;
 let track;
 let trackDirty = true; // ステージが変わったらtrackを作り直す必要がある
@@ -169,6 +183,17 @@ function initScene() {
   sunLight.shadow.camera.bottom = -120;
   sunLight.shadow.camera.far = 250;
   scene.add(sunLight);
+
+  // ---- ブルーム(発光にじみ)ポストエフェクト ----
+  // しきい値を高めにして、ネオン看板など本当に明るい(emissiveの強い)ものだけを
+  // 光らせる。通常の空や道路の明るさ程度では発光しないようにするための値。
+  composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.8, 0.4, 0.86);
+  composer.addPass(bloomPass);
+  // OutputPass: レンダラーの色空間変換(sRGB化)を最後にかける。これが無いと
+  // コンポーザー経由の描画だけ全体が暗く沈んで見える。
+  composer.addPass(new OutputPass());
 
   window.addEventListener('resize', onResize);
   onResize();
@@ -209,6 +234,7 @@ function onResize() {
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
+  if (composer) composer.setSize(w, h);
 }
 
 function loadCarModel(path) {
@@ -813,7 +839,7 @@ function loop(now) {
     updateEngineSound(carController.speed / (26 * (currentStage.worldScale || 1)));
   }
 
-  renderer.render(scene, camera);
+  composer.render();
   requestAnimationFrame(loop);
 }
 

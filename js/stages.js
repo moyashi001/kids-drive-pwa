@@ -145,7 +145,7 @@ export const STAGES = [
     trackType: 'spline',
     carSet: 'kenney',
     worldScale: 1,
-    npcIds: ['taxi', 'van', 'suv-luxury', 'police', 'ambulance', 'firetruck', 'delivery'],
+    npcIds: ['taxi', 'van', 'suv-luxury', 'police', 'ambulance', 'firetruck', 'delivery', 'pet-dog', 'pet-fox'],
   },
   {
     id: 'city',
@@ -188,7 +188,7 @@ export const STAGES = [
     carSet: 'kenney',
     worldScale: 1,
     layout: { controlPoints: WINDING_CONTROL_POINTS, overpassU: 0.28 },
-    npcIds: ['sedan-sports', 'hatchback-sports', 'suv', 'garbage-truck', 'tractor'],
+    npcIds: ['sedan-sports', 'hatchback-sports', 'suv', 'garbage-truck', 'tractor', 'pet-fox', 'pet-tiger'],
     theme: {
       sky: 0xffab73,
       fogNear: 100,
