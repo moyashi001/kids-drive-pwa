@@ -116,6 +116,9 @@ export async function createCityTrack(def) {
     mesh.position.set(b.gx * TILE_SCALE, 0, b.gz * TILE_SCALE);
     mesh.rotation.y = THREE.MathUtils.degToRad(b.rotDeg || 0);
     mesh.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+    if (b.tint !== undefined) {
+      mesh.traverse(o => { if (o.isMesh && o.material) o.material.color.set(b.tint); });
+    }
     if (b.type.startsWith('cyberpunk/')) applyEmissiveGlow(mesh, b.glowIntensity || 1.1, b.glowColor);
     if (b.light) {
       const light = new THREE.PointLight(b.light.color, b.light.intensity, b.light.distance);

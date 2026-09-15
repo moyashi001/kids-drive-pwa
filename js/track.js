@@ -104,6 +104,10 @@ export function createTrack(def = {}) {
   group.add(new THREE.Mesh(curbLGeo, curbMatA));
   group.add(new THREE.Mesh(curbRGeo, curbMatA.clone()));
 
+  // ---- ガードレール(縁石のすぐ外側に沿わせる。道が寂しく見えないようにする) ----
+  group.add(buildFence(curbLOuter));
+  group.add(buildFence(curbROuter));
+
   // ---- センターライン (破線) ----
   const dashGeo = new THREE.BoxGeometry(0.5, 0.03, 1.6);
   const dashMat = new THREE.MeshBasicMaterial({ color: PALETTE.roadLine });
@@ -165,9 +169,10 @@ export function createTrack(def = {}) {
   const decorGroup = new THREE.Group();
   group.add(decorGroup);
 
-  // ---- 簡易な木(デコレーション) ----
-  for (let i = 0; i < 26; i++) {
-    const angle = (i / 26) * Math.PI * 2;
+  // ---- 簡易な木(デコレーション、外周にぐるっと配置) ----
+  const TREE_COUNT = 42;
+  for (let i = 0; i < TREE_COUNT; i++) {
+    const angle = (i / TREE_COUNT) * Math.PI * 2;
     const radius = 95 + Math.sin(i * 3.1) * 18;
     const x = Math.cos(angle) * radius;
     const z = Math.sin(angle) * radius;
@@ -177,6 +182,10 @@ export function createTrack(def = {}) {
     tree.scale.set(s, s, s);
     group.add(tree);
   }
+
+  // ---- 道路脇の茂み・岩(ガードレールのすぐ外側。道が寂しく見えないよう密度を稼ぐ) ----
+  group.add(scatterRoadside(centerPts, curbLOuter));
+  group.add(scatterRoadside(centerPts, curbROuter));
 
   return {
     group,
@@ -237,6 +246,65 @@ function buildOverpass() {
   });
 
   return g;
+}
+
+// 縁石の外側に沿わせるガードレール。支柱(InstancedMesh)+2段の帯(チューブ)で
+// 構成し、道路脇が寂しく見えないようにする。edgePointsは縁石外周のサンプル点列。
+function buildFence(edgePoints) {
+  const g = new THREE.Group();
+
+  const postMat = new THREE.MeshLambertMaterial({ color: 0xd8d8d8 });
+  const postGeo = new THREE.CylinderGeometry(0.09, 0.11, 1.0, 6);
+  const step = 5; // サンプル点はcenterPtsと同密度(400分割)なので5点おき≒約1.4ユニット間隔
+  const count = Math.ceil(edgePoints.length / step) + 1;
+  const postMesh = new THREE.InstancedMesh(postGeo, postMat, count);
+  const dummy = new THREE.Object3D();
+  let idx = 0;
+  for (let i = 0; i < edgePoints.length; i += step) {
+    const p = edgePoints[i];
+    dummy.position.set(p.x, 0.5, p.z);
+    dummy.updateMatrix();
+    postMesh.setMatrixAt(idx++, dummy.matrix);
+  }
+  postMesh.count = idx;
+  g.add(postMesh);
+
+  const railMat = new THREE.MeshLambertMaterial({ color: 0xf2f2f2 });
+  [0.85, 0.45].forEach(h => {
+    const railCurve = new THREE.CatmullRomCurve3(
+      edgePoints.map(p => new THREE.Vector3(p.x, h, p.z)), true, 'catmullrom', 0.55
+    );
+    const railGeo = new THREE.TubeGeometry(railCurve, edgePoints.length, 0.05, 6, true);
+    g.add(new THREE.Mesh(railGeo, railMat));
+  });
+
+  return g;
+}
+
+// 縁石のさらに外側(ガードレールの外)に茂み・岩をランダムに散らして、道路脇の
+// 密度を上げる。centerPts/edgePointsは同じインデックスで対応しているので、
+// 「縁石点 - 中心点」の方向をそのまま外向き法線として使える。
+function scatterRoadside(centerPts, edgePoints) {
+  const group = new THREE.Group();
+  const bushMat = new THREE.MeshLambertMaterial({ color: PALETTE.leaves });
+  const rockMat = new THREE.MeshLambertMaterial({ color: 0x9e9e9e });
+  const step = 9;
+  for (let i = 0; i < edgePoints.length; i += step) {
+    if (Math.random() < 0.4) continue; // 隙間も残して単調な壁にならないようにする
+    const edge = edgePoints[i];
+    const center = centerPts[i];
+    const outward = edge.clone().sub(center).normalize();
+    const pos = edge.clone().addScaledVector(outward, 1.4 + Math.random() * 2.2);
+    const isRock = Math.random() < 0.35;
+    const mesh = isRock
+      ? new THREE.Mesh(new THREE.DodecahedronGeometry(0.45 + Math.random() * 0.35, 0), rockMat)
+      : new THREE.Mesh(new THREE.SphereGeometry(0.55 + Math.random() * 0.45, 6, 5), bushMat);
+    mesh.position.copy(pos);
+    mesh.position.y = isRock ? 0.25 : 0.5;
+    mesh.rotation.y = Math.random() * Math.PI * 2;
+    group.add(mesh);
+  }
+  return group;
 }
 
 function buildTree() {

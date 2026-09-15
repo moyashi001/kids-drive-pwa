@@ -52,14 +52,27 @@ const CITY_LAYOUT = {
     [1, 6], [0.513, 5], [0.513, 2],
   ],
   buildings: [
+    // 四隅
     { type: 'building-e', gx: -1.5, gz: -0.7, rotDeg: 20, scale: 0.7 },
     { type: 'building-c', gx: 9.5, gz: -0.7, rotDeg: -20, scale: 0.7 },
     { type: 'building-h', gx: -1.5, gz: 7.7, rotDeg: -15, scale: 0.7 },
     { type: 'building-k', gx: 9.5, gz: 7.7, rotDeg: 15, scale: 0.7 },
-    { type: 'building-b', gx: 3, gz: -1.7, rotDeg: 0, scale: 0.7 },
-    { type: 'building-a', gx: 5, gz: -1.7, rotDeg: 0, scale: 0.7 },
-    { type: 'building-d', gx: 3, gz: 8.2, rotDeg: 180, scale: 0.7 },
-    { type: 'building-f', gx: 5, gz: 8.2, rotDeg: 180, scale: 0.7 },
+    // 上辺(密度アップ: 3棟に増量)
+    { type: 'building-b', gx: 1.8, gz: -1.7, rotDeg: 0, scale: 0.6 },
+    { type: 'building-a', gx: 4, gz: -1.8, rotDeg: 0, scale: 0.7 },
+    { type: 'building-f', gx: 6.2, gz: -1.7, rotDeg: 0, scale: 0.6 },
+    // 下辺(密度アップ: 3棟に増量)
+    { type: 'building-d', gx: 1.8, gz: 8.2, rotDeg: 180, scale: 0.6 },
+    { type: 'building-h', gx: 4, gz: 8.3, rotDeg: 180, scale: 0.7 },
+    { type: 'building-k', gx: 6.2, gz: 8.2, rotDeg: 180, scale: 0.6 },
+    // 左辺(新規)
+    { type: 'building-c', gx: -1.8, gz: 1.7, rotDeg: 70, scale: 0.6 },
+    { type: 'building-e', gx: -1.9, gz: 3.5, rotDeg: 90, scale: 0.65 },
+    { type: 'building-a', gx: -1.8, gz: 5.3, rotDeg: 110, scale: 0.6 },
+    // 右辺(新規)
+    { type: 'building-f', gx: 9.8, gz: 1.7, rotDeg: -70, scale: 0.6 },
+    { type: 'building-b', gx: 9.9, gz: 3.5, rotDeg: -90, scale: 0.65 },
+    { type: 'building-d', gx: 9.8, gz: 5.3, rotDeg: -110, scale: 0.6 },
   ],
 };
 
@@ -122,6 +135,20 @@ const CYBER_LAYOUT = {
     // 右辺沿い
     { type: 'cyberpunk/light-street-2.gltf', gx: 8.4, gz: 2.2, rotDeg: -90, scale: 1, glowColor: 0x39ff88, light: { color: 0x39ff88, intensity: 1.5, distance: 11 } },
     { type: 'cyberpunk/ac-stacked.gltf', gx: 8.5, gz: 4.0, rotDeg: -90, scale: 0.9, glowColor: 0xa855f7 },
+    // 追加のネオン(密度アップ)
+    { type: 'cyberpunk/antenna-1.gltf', gx: 1.0, gz: -1.2, rotDeg: 15, scale: 0.85, glowColor: 0xff2d95 },
+    { type: 'cyberpunk/antenna-2.gltf', gx: 7.2, gz: 8.3, rotDeg: 200, scale: 0.85, glowColor: 0x00e5ff },
+    { type: 'cyberpunk/ac-stacked.gltf', gx: -1.1, gz: 5.8, rotDeg: 100, scale: 0.8, glowColor: 0xffd166 },
+    { type: 'cyberpunk/sign-corner-hazard.gltf', gx: 8.6, gz: 1.0, rotDeg: -100, scale: 0.85, glowColor: 0x39ff88, light: { color: 0x39ff88, intensity: 1.6, distance: 12 } },
+    // 遠景のビル群(既定色を暗紺色に染めて、ネオンの手前に沈むシルエットにする)
+    { type: 'building-a', gx: 4 + 7 * Math.cos(0), gz: 3.5 + 7 * Math.sin(0), rotDeg: 0, scale: 1.3, tint: 0x1a1a2e },
+    { type: 'building-b', gx: 4 + 7 * Math.cos(Math.PI / 4), gz: 3.5 + 7 * Math.sin(Math.PI / 4), rotDeg: 45, scale: 1.4, tint: 0x1a1a2e },
+    { type: 'building-c', gx: 4 + 7 * Math.cos(Math.PI / 2), gz: 3.5 + 7 * Math.sin(Math.PI / 2), rotDeg: 90, scale: 1.3, tint: 0x1a1a2e },
+    { type: 'building-d', gx: 4 + 7 * Math.cos(3 * Math.PI / 4), gz: 3.5 + 7 * Math.sin(3 * Math.PI / 4), rotDeg: 135, scale: 1.5, tint: 0x1a1a2e },
+    { type: 'building-e', gx: 4 + 7 * Math.cos(Math.PI), gz: 3.5 + 7 * Math.sin(Math.PI), rotDeg: 180, scale: 1.3, tint: 0x1a1a2e },
+    { type: 'building-f', gx: 4 + 7 * Math.cos(5 * Math.PI / 4), gz: 3.5 + 7 * Math.sin(5 * Math.PI / 4), rotDeg: 225, scale: 1.4, tint: 0x1a1a2e },
+    { type: 'building-h', gx: 4 + 7 * Math.cos(3 * Math.PI / 2), gz: 3.5 + 7 * Math.sin(3 * Math.PI / 2), rotDeg: 270, scale: 1.3, tint: 0x1a1a2e },
+    { type: 'building-k', gx: 4 + 7 * Math.cos(7 * Math.PI / 4), gz: 3.5 + 7 * Math.sin(7 * Math.PI / 4), rotDeg: 315, scale: 1.5, tint: 0x1a1a2e },
   ],
 };
 
