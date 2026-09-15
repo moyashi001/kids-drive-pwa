@@ -401,17 +401,45 @@ export function nearestCenterIndex(track, position) {
   return bestI;
 }
 
+// 線分a-b上に position をXZ平面で投影し、区間内の位置(0..1)における
+// 高さを線形補間して返す。centerPtsは離散的な点の並びなので、一番近い
+// 点の高さをそのまま使うと坂道でカクカクした段差(車体がバウンドして
+// 見える原因)になってしまうため、区間内で滑らかに繋ぐために使う。
+function projectHeightOnSegment(a, b, position) {
+  const abx = b.x - a.x;
+  const abz = b.z - a.z;
+  const apx = position.x - a.x;
+  const apz = position.z - a.z;
+  const lenSq = abx * abx + abz * abz || 1;
+  let t = (apx * abx + apz * abz) / lenSq;
+  if (t < 0) t = 0; else if (t > 1) t = 1;
+  const px = a.x + abx * t;
+  const pz = a.z + abz * t;
+  const dx = position.x - px;
+  const dz = position.z - pz;
+  return { distSq: dx * dx + dz * dz, y: a.y + (b.y - a.y) * t };
+}
+
 // 現在位置に一番近いコース上の高さと、その付近の勾配(ピッチ角)を返す。
 // 坂道で車のY座標・傾きを追従させるために使う。
 export function sampleTrackHeight(track, position) {
   const pts = track.centerPts;
+  const n = pts.length;
   const bestI = nearestCenterIndex(track, position);
+  const prevI = (bestI - 1 + n) % n;
+  const nextI = (bestI + 1) % n;
+
+  // 前後どちらの区間に位置しているかを判定し、その区間内で高さを補間する
+  const segPrev = projectHeightOnSegment(pts[prevI], pts[bestI], position);
+  const segNext = projectHeightOnSegment(pts[bestI], pts[nextI], position);
+  const y = segPrev.distSq <= segNext.distSq ? segPrev.y : segNext.y;
+
   const spread = 4;
-  const next = pts[(bestI + spread) % pts.length];
-  const prev = pts[(bestI - spread + pts.length) % pts.length];
+  const next = pts[(bestI + spread) % n];
+  const prev = pts[(bestI - spread + n) % n];
   const horizDist = Math.hypot(next.x - prev.x, next.z - prev.z) || 1;
   const pitch = Math.atan2(next.y - prev.y, horizDist);
-  return { y: pts[bestI].y, pitch };
+  return { y, pitch };
 }
 
 // ガードレール(fenceRadius)より外に出ないよう位置をクランプする。
