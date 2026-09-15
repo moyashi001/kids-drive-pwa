@@ -416,9 +416,10 @@ export function sampleTrackHeight(track, position) {
 
 // ガードレール(fenceRadius)より外に出ないよう位置をクランプする。
 // ガードレールが無いステージ(track.fenceRadiusが未定義、タイル系コースなど)では
-// 何もしない。戻り値はガードレールに衝突したかどうか(衝突時の減速演出に使う)。
+// 何もしない。衝突した場合は壁の外向き法線{nx, nz}を返す(軽く跳ね返す演出に使う)。
+// 衝突していなければnullを返す。
 export function clampToTrackBounds(track, position) {
-  if (!track.fenceRadius) return false;
+  if (!track.fenceRadius) return null;
   const pts = track.centerPts;
   let bestI = 0;
   let bestDist = Infinity;
@@ -431,9 +432,10 @@ export function clampToTrackBounds(track, position) {
   const dx = position.x - center.x;
   const dz = position.z - center.z;
   const dist = Math.hypot(dx, dz);
-  if (dist <= track.fenceRadius) return false;
-  const scale = track.fenceRadius / dist;
-  position.x = center.x + dx * scale;
-  position.z = center.z + dz * scale;
-  return true;
+  if (dist <= track.fenceRadius) return null;
+  const nx = dx / dist;
+  const nz = dz / dist;
+  position.x = center.x + nx * track.fenceRadius;
+  position.z = center.z + nz * track.fenceRadius;
+  return { nx, nz };
 }

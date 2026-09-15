@@ -345,16 +345,20 @@ function updateJumpRamps(dt) {
   const carIndex = nearestCenterIndex(track, carController.group.position);
   for (const ramp of jumpRamps) {
     const inZone = circularIndexDist(carIndex, ramp.index, pts.length) <= indexWindow;
-    if (!inZone) {
-      // 台の範囲から出たら再度ジャンプできるようにする(時間経過ではなく
-      // 範囲を出たかどうかで管理し、コーナーで詰まって同じ場所に留まった時に
-      // 何度も連続でジャンプし続けてしまうのを防ぐ)
-      ramp.armed = true;
+    if (inZone) {
+      if (ramp.armed && !carController.airborne) {
+        carController.triggerJump();
+        ramp.armed = false;
+      }
       continue;
     }
-    if (ramp.armed && !carController.airborne) {
-      carController.triggerJump();
-      ramp.armed = false;
+    // 台の範囲から出て、かつ着地している時だけ再度ジャンプできるようにする
+    // (時間経過ではなく範囲を出たかどうかで管理し、コーナーで詰まって同じ場所に
+    // 留まった時に何度も連続でジャンプし続けてしまうのを防ぐ。空中にいる間に
+    // 範囲の出入りだけで再武装すると、着地した瞬間そのまま同じ台でもう一度
+    // 発動してしまうため、着地済みであることも条件にする)
+    if (!carController.airborne) {
+      ramp.armed = true;
     }
   }
 }

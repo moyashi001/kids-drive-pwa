@@ -176,9 +176,18 @@ export class CarController {
     this.position.addScaledVector(forward, this.speed * dt);
 
     // ガードレールがあるステージでは、外側に出ようとした位置を縁でクランプし、
-    // すり抜けられないようにする。ぶつかった時は少し減速させて壁っぽさを出す。
-    if (clampToTrackBounds(track, this.position)) {
+    // すり抜けられないようにする。ぶつかった時は少し減速させ、壁沿いに滑る
+    // 向きへ少しだけ進行方向を補正して、壁に張り付いて抜け出しにくくならない
+    // よう軽く跳ね返す感じを出す。
+    const wallHit = clampToTrackBounds(track, this.position);
+    if (wallHit) {
       this.speed *= 0.6;
+      const outward = Math.atan2(wallHit.nx, wallHit.nz);
+      const tangentA = outward + Math.PI / 2;
+      const tangentB = outward - Math.PI / 2;
+      const target = Math.abs(shortestAngleDiff(this.heading, tangentA)) < Math.abs(shortestAngleDiff(this.heading, tangentB))
+        ? tangentA : tangentB;
+      this.heading = smoothAngle(this.heading, target, 4, dt);
     }
 
     const { y: targetY, pitch } = sampleTrackHeight(track, this.position);
@@ -202,10 +211,15 @@ export class CarController {
   }
 }
 
-function smoothAngle(current, target, rate, dt) {
-  let diff = target - current;
+function shortestAngleDiff(from, to) {
+  let diff = to - from;
   while (diff > Math.PI) diff -= Math.PI * 2;
   while (diff < -Math.PI) diff += Math.PI * 2;
+  return diff;
+}
+
+function smoothAngle(current, target, rate, dt) {
+  const diff = shortestAngleDiff(current, target);
   const t = Math.min(1, rate * dt);
   return current + diff * t;
 }
