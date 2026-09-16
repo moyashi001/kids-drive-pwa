@@ -16,9 +16,9 @@ function detectForwardOffset(gltfScene) {
   return frontZ !== null && frontZ < 0 ? Math.PI : 0;
 }
 
-const MAX_SPEED = 26;          // units/秒
-const MAX_REVERSE_SPEED = 10;
-const ACCEL = 22;
+const MAX_SPEED = 18;          // units/秒(子供が操作しやすいよう抑えめにしている)
+const MAX_REVERSE_SPEED = 7;
+const ACCEL = 15;
 const BRAKE_DECEL = 34;
 const FRICTION = 10;
 const TURN_RATE = 2.4;         // rad/秒 (最大)
@@ -176,18 +176,20 @@ export class CarController {
     this.position.addScaledVector(forward, this.speed * dt);
 
     // ガードレールがあるステージでは、外側に出ようとした位置を縁でクランプし、
-    // すり抜けられないようにする。ぶつかった時は少し減速させ、壁沿いに滑る
-    // 向きへ少しだけ進行方向を補正して、壁に張り付いて抜け出しにくくならない
-    // よう軽く跳ね返す感じを出す。
+    // すり抜けられないようにする。ぶつかった時はしっかり減速させ、道路の
+    // 真ん中寄りまで押し戻す強めの跳ね返りにして、壁に張り付いたままに
+    // ならないようにする。
     const wallHit = clampToTrackBounds(track, this.position);
     if (wallHit) {
-      this.speed *= 0.6;
-      const outward = Math.atan2(wallHit.nx, wallHit.nz);
-      const tangentA = outward + Math.PI / 2;
-      const tangentB = outward - Math.PI / 2;
-      const target = Math.abs(shortestAngleDiff(this.heading, tangentA)) < Math.abs(shortestAngleDiff(this.heading, tangentB))
-        ? tangentA : tangentB;
-      this.heading = smoothAngle(this.heading, target, 4, dt);
+      this.speed *= 0.4;
+      const fenceR = track.fenceRadius;
+      const centerX = this.position.x - wallHit.nx * fenceR;
+      const centerZ = this.position.z - wallHit.nz * fenceR;
+      const bounceDist = fenceR * 0.45;
+      this.position.x = centerX + wallHit.nx * bounceDist;
+      this.position.z = centerZ + wallHit.nz * bounceDist;
+      const inward = Math.atan2(-wallHit.nx, -wallHit.nz);
+      this.heading = smoothAngle(this.heading, inward, 6, dt);
     }
 
     const { y: targetY, pitch } = sampleTrackHeight(track, this.position);

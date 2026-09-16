@@ -1079,7 +1079,7 @@ function loop(now) {
     updateJumpRamps(dt);
     updateSpeedPads(dt);
     updateCamera(dt);
-    updateEngineSound(carController.speed / (26 * (currentStage.worldScale || 1)));
+    updateEngineSound(carController.speed / (18 * (currentStage.worldScale || 1)));
   }
 
   composer.render();
