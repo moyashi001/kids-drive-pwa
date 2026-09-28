@@ -27,12 +27,23 @@ html, body {
 .screen {
   position: fixed;
   inset: 0;
-  display: none;
+  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: scale(0.98);
+  transition: opacity 0.25s ease, transform 0.25s ease, visibility 0s linear 0.25s;
 }
-.screen.active { display: flex; }
+.screen.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: scale(1);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
 
 /* ---------- Loading ---------- */
 #loading-screen {
@@ -221,6 +232,15 @@ html, body {
   height: 100%;
   display: block;
   touch-action: none;
+}
+
+/* 画面端をわずかに暗くして、写真のような締まりを出す(ゲームプレイ中のみ) */
+.vignette-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.35) 100%);
 }
 
 .hud-top {

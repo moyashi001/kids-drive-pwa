@@ -7,7 +7,7 @@ import { OutputPass } from '../lib/three/examples/jsm/postprocessing/OutputPass.
 import { CARS } from './cars.js';
 import { TOY_CARS } from './toyCars.js';
 import { PETS } from './pets.js';
-import { createTrack, nearestCenterIndex } from './track.js';
+import { createTrack, nearestCenterIndex, sampleTrackHeight, roadOffsetRatio } from './track.js';
 import { createCityTrack } from './cityTrack.js';
 import { STAGES } from './stages.js';
 import { CarController } from './carController.js';
@@ -151,12 +151,28 @@ function preloadPreviews(onProgress) {
 let renderer, scene, camera;
 let composer, bloomPass;
 let hemiLight, sunLight;
+let carShadowMesh;
 let track;
 let trackDirty = true; // ステージが変わったらtrackを作り直す必要がある
 let carController = null;
 let currentModel = null;
 const gltfLoader = new GLTFLoader();
 const gltfCache = new Map();
+
+// 円形のグラデーションテクスチャを作る(コンタクトシャドウ・ダストなどで使う)
+function buildRadialGradientTexture(innerColor, outerColor) {
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  grad.addColorStop(0, innerColor);
+  grad.addColorStop(1, outerColor);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(canvas);
+}
 
 function initScene() {
   const canvas = document.getElementById('game-canvas');
@@ -183,6 +199,19 @@ function initScene() {
   sunLight.shadow.camera.bottom = -120;
   sunLight.shadow.camera.far = 250;
   scene.add(sunLight);
+
+  // ---- 車の接地感を出すコンタクトシャドウ(車の真下に置く薄い円形の影) ----
+  // ディレクショナルライトの影だけだと坂や離れた角度で薄く感じるため、
+  // 常に真下にうっすら影を落として地面に着いている感じを補強する。
+  // ジャンプ台で飛んでいる間は高さに応じて薄く・小さくなるようにする。
+  const shadowTex = buildRadialGradientTexture('rgba(0,0,0,0.55)', 'rgba(0,0,0,0)');
+  const shadowMat = new THREE.MeshBasicMaterial({
+    map: shadowTex, transparent: true, depthWrite: false, fog: false,
+  });
+  carShadowMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), shadowMat);
+  carShadowMesh.rotation.x = -Math.PI / 2;
+  carShadowMesh.visible = false;
+  scene.add(carShadowMesh);
 
   // ---- ブルーム(発光にじみ)ポストエフェクト ----
   // しきい値を高めにして、ネオン看板など本当に明るい(emissiveの強い)ものだけを
@@ -829,6 +858,16 @@ function updateNpcs(dt) {
 // kind: 'ram'     -> 一定時間ブーストしながら、触れたNPCを継続的に吹き飛ばす
 const SKILL_GAUGE_DISTANCE = 220; // これだけ走るとゲージが満タンになる(units)
 const SKILL_SPARKLE_COLORS = [0xffd700, 0xffffff, 0x00e5ff, 0xff4fa3];
+
+// とくぎボタンのアイコン。絵文字だと車種によってフォントの見た目がバラつくため、
+// kindごとに統一デザインのSVGアイコンを表示する(ペットだけは肉球で特別扱い)。
+const SKILL_ICONS = {
+  siren: '<svg viewBox="0 0 24 24" width="30" height="30"><path d="M12 3a6 6 0 0 0-6 6v4H4l-1.5 3h19L20 13h-2V9a6 6 0 0 0-6-6z" fill="#e53935"/><rect x="9" y="18" width="6" height="2.5" rx="1" fill="#37474f"/><circle cx="12" cy="9" r="2.3" fill="#fff59d"/></svg>',
+  boost: '<svg viewBox="0 0 24 24" width="30" height="30"><path d="M12 2c2 4 5 7 5 11a5 5 0 0 1-10 0c0-4 3-7 5-11z" fill="#ff7043"/><path d="M12 10c1 1.6 2 3 2 4.4a2 2 0 0 1-4 0c0-1.4 1-2.8 2-4.4z" fill="#ffd54f"/></svg>',
+  agility: '<svg viewBox="0 0 24 24" width="30" height="30"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" fill="#ffd54f"/></svg>',
+  ram: '<svg viewBox="0 0 24 24" width="30" height="30"><path d="M12 2 14 9 21 9 15.5 13 17.5 20 12 16 6.5 20 8.5 13 3 9 10 9 12 2Z" fill="#ff8a65"/></svg>',
+  paw: '<svg viewBox="0 0 24 24" width="30" height="30"><ellipse cx="12" cy="16" rx="5" ry="4" fill="#8d6e63"/><circle cx="6" cy="10" r="2.2" fill="#8d6e63"/><circle cx="10.5" cy="6.5" r="2.2" fill="#8d6e63"/><circle cx="14.5" cy="6.5" r="2" fill="#8d6e63"/><circle cx="18" cy="10" r="2" fill="#8d6e63"/></svg>',
+};
 let currentSkill = null;
 let skillGauge = 0;   // 0..1
 let skillActive = false;
@@ -845,7 +884,8 @@ function updateSkillButton() {
     return;
   }
   btn.classList.remove('skill-hidden');
-  icon.textContent = currentSkill.icon;
+  const isPet = !!(selectedCarId && selectedCarId.startsWith('pet-'));
+  icon.innerHTML = SKILL_ICONS[isPet ? 'paw' : currentSkill.kind] || SKILL_ICONS.boost;
   const pct = skillActive ? 100 : Math.round(skillGauge * 100);
   btn.style.setProperty('--skill-pct', `${pct}%`);
   btn.classList.toggle('skill-ready', skillGauge >= 1 && !skillActive);
@@ -1027,6 +1067,109 @@ const camOffset = new THREE.Vector3();
 const camTarget = new THREE.Vector3();
 const lookTarget = new THREE.Vector3();
 
+// ---------- 車の接地感を出すコンタクトシャドウ ----------
+function updateCarShadow(dt) {
+  if (!carController || !track) { carShadowMesh.visible = false; return; }
+  carShadowMesh.visible = true;
+  const pos = carController.group.position;
+  const groundY = sampleTrackHeight(track, pos).y;
+  const heightAbove = Math.max(0, pos.y - groundY);
+  const s = currentStage.worldScale || 1;
+  const fade = Math.max(0, 1 - heightAbove / (6 * s));
+  carShadowMesh.position.set(pos.x, groundY + 0.03 * s, pos.z);
+  carShadowMesh.scale.setScalar(2.2 * s * (0.85 + fade * 0.15));
+  carShadowMesh.material.opacity = 0.55 * fade;
+}
+
+// ---------- オフロード走行時のダスト(土煙)パーティクル ----------
+const dustTexture = buildRadialGradientTexture('rgba(198,178,133,0.65)', 'rgba(198,178,133,0)');
+const dustParticles = [];
+let dustSpawnTimer = 0;
+
+function spawnDust(position, s) {
+  if (dustParticles.length > 24) return; // 増えすぎないよう上限を設ける
+  const mat = new THREE.MeshBasicMaterial({
+    map: dustTexture, transparent: true, opacity: 0.5, depthWrite: false,
+  });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat);
+  mesh.rotation.x = -Math.PI / 2;
+  const baseScale = (0.7 + Math.random() * 0.5) * s;
+  mesh.scale.setScalar(baseScale);
+  mesh.position.copy(position).add(new THREE.Vector3(
+    (Math.random() - 0.5) * 0.6 * s, 0.05 * s, (Math.random() - 0.5) * 0.6 * s
+  ));
+  scene.add(mesh);
+  const vel = new THREE.Vector3((Math.random() - 0.5) * 0.6 * s, 0.35 * s, (Math.random() - 0.5) * 0.6 * s);
+  dustParticles.push({ mesh, vel, life: 0, maxLife: 0.5 + Math.random() * 0.3, baseScale });
+}
+
+function updateDust(dt) {
+  if (carController && track) {
+    dustSpawnTimer -= dt;
+    const s = currentStage.worldScale || 1;
+    const offRoad = roadOffsetRatio(track, carController.position) > 1;
+    const moving = Math.abs(carController.speed) > 2 * s;
+    if (offRoad && moving && dustSpawnTimer <= 0) {
+      dustSpawnTimer = 0.05;
+      spawnDust(carController.group.position, s);
+    }
+  }
+  for (let i = dustParticles.length - 1; i >= 0; i--) {
+    const p = dustParticles[i];
+    p.life += dt;
+    p.mesh.position.addScaledVector(p.vel, dt);
+    const t = p.life / p.maxLife;
+    p.mesh.material.opacity = Math.max(0, 0.5 * (1 - t));
+    p.mesh.scale.setScalar(p.baseScale * (1 + t * 1.4));
+    if (t >= 1) {
+      scene.remove(p.mesh);
+      p.mesh.geometry.dispose();
+      p.mesh.material.dispose();
+      dustParticles.splice(i, 1);
+    }
+  }
+}
+
+// ---------- ガードレール衝突時の火花パーティクル ----------
+const WALL_SPARK_COLORS = [0xfff176, 0xffffff, 0xffb300];
+const wallSparkParticles = [];
+
+function spawnWallSparks(position, s) {
+  for (let i = 0; i < 8; i++) {
+    const color = WALL_SPARK_COLORS[Math.floor(Math.random() * WALL_SPARK_COLORS.length)];
+    const mat = new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.12 * s, 0), mat);
+    mesh.position.copy(position).add(new THREE.Vector3(0, 0.4 * s, 0));
+    scene.add(mesh);
+    const angle = Math.random() * Math.PI * 2;
+    const speed = (2 + Math.random() * 3) * s;
+    const vel = new THREE.Vector3(Math.cos(angle) * speed, (1.5 + Math.random() * 2) * s, Math.sin(angle) * speed);
+    wallSparkParticles.push({ mesh, vel, life: 0, maxLife: 0.3 + Math.random() * 0.2 });
+  }
+}
+
+function updateWallSparks(dt) {
+  if (carController && carController.lastWallHit) {
+    spawnWallSparks(carController.lastWallHit, currentStage.worldScale || 1);
+  }
+  for (let i = wallSparkParticles.length - 1; i >= 0; i--) {
+    const p = wallSparkParticles[i];
+    p.life += dt;
+    p.vel.y -= 8 * dt;
+    p.mesh.position.addScaledVector(p.vel, dt);
+    const t = p.life / p.maxLife;
+    p.mesh.material.opacity = Math.max(0, 1 - t);
+    if (t >= 1) {
+      scene.remove(p.mesh);
+      p.mesh.geometry.dispose();
+      p.mesh.material.dispose();
+      wallSparkParticles.splice(i, 1);
+    }
+  }
+}
+
 function updateCamera(dt) {
   if (!carController) return;
   const forward = carController.forwardVector();
@@ -1078,6 +1221,9 @@ function loop(now) {
     updateItemBoxes(dt);
     updateJumpRamps(dt);
     updateSpeedPads(dt);
+    updateCarShadow(dt);
+    updateDust(dt);
+    updateWallSparks(dt);
     updateCamera(dt);
     updateEngineSound(carController.speed / (18 * (currentStage.worldScale || 1)));
   }

@@ -1,5 +1,5 @@
 import * as THREE from '../lib/three/build/three.module.js';
-import { buildMountainRing, buildClouds, buildBlimp } from './skyDecor.js';
+import { buildMountainRing, buildClouds, buildBlimp, buildSun } from './skyDecor.js';
 
 // Kenney "3D Road Tiles" 風のフラットカラーを再現したパレット
 export const PALETTE = {
@@ -225,6 +225,10 @@ export function createTrack(def = {}) {
   blimp.position.set(-maxReach * 0.6, maxReach * 0.5, -maxReach * 1.7);
   blimp.rotation.y = Math.PI / 5;
   group.add(blimp);
+
+  const sun = buildSun(def.sunColor || 0xfff2b2, maxReach);
+  sun.position.set(maxReach * 1.3, maxReach * 1.1, -maxReach * 1.6);
+  group.add(sun);
 
   return {
     group,

@@ -41,6 +41,34 @@ export function buildClouds(radius, count) {
   return group;
 }
 
+// ふんわりした円形グラデーションのテクスチャ(太陽/月の発光表現に使う)
+function buildGlowTexture() {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.4, 'rgba(255,255,255,0.7)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(canvas);
+}
+
+// 空に浮かぶ太陽(昼間ステージ)/月(サイバーシティなど夜ステージ)。
+// 常にカメラの方を向くスプライトなので、コースのどこから見ても丸く見える。
+export function buildSun(color, radius) {
+  const mat = new THREE.SpriteMaterial({
+    map: buildGlowTexture(), color, transparent: true, opacity: 0.95,
+    depthWrite: false, fog: false, blending: THREE.AdditiveBlending,
+  });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.setScalar(radius * 0.3);
+  return sprite;
+}
+
 // マリオカート風の飛行船(単純な楕円体+尾翼+ゴンドラ)。
 // scaleで街コース(小さめ)/草原コース(大きめ)のサイズ差に合わせる。
 export function buildBlimp(bodyColor, finColor, scale = 1) {

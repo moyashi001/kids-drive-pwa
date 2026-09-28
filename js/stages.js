@@ -146,6 +146,7 @@ const CYBER_LAYOUT = {
   groundColor: 0x24243a,
   groundRadius: TILE_LOOP_GROUND_RADIUS,
   groundCenter: TILE_LOOP_CENTER,
+  sunColor: 0xaeb8ff,
   blimpColor: 0x00e5ff,
   blimpScale: 0.6,
   roadWidthRatio: 0.5,
@@ -223,7 +224,7 @@ export const STAGES = [
     trackType: 'spline',
     carSet: 'kenney',
     worldScale: 1,
-    layout: { controlPoints: WINDING_CONTROL_POINTS, overpassU: 0.28, mountainColor: 0xad6b4a, blimpColor: 0xf0a020 },
+    layout: { controlPoints: WINDING_CONTROL_POINTS, overpassU: 0.28, mountainColor: 0xad6b4a, blimpColor: 0xf0a020, sunColor: 0xffcc80 },
     npcIds: ['sedan-sports', 'hatchback-sports', 'suv', 'garbage-truck', 'tractor', 'pet-fox', 'pet-tiger'],
     theme: {
       sky: 0xffab73,

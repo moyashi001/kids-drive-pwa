@@ -28,6 +28,7 @@ const MAX_PITCH = 0.4;         // 車体の傾き(ラジアン)の上限
 const GRAVITY_BASE = 30;       // ジャンプ台で飛んだ後の落下加速度(worldScale倍する)
 const JUMP_FORCE_BASE = 13;    // ジャンプ台の初速(worldScale倍する)
 const SPEED_PAD_MULTIPLIER = 1.35; // スピードパッド踏んでいる間の速度倍率
+const WHEEL_RADIUS_BASE = 0.38;    // タイヤ回転アニメーション計算用の見た目上の半径(近似値)
 
 export class CarController {
   // worldScale: ステージ(コース)のスケールに合わせて速度感を調整する係数。
@@ -40,11 +41,16 @@ export class CarController {
     this.model = gltfScene;
     this.model.rotation.y = detectForwardOffset(gltfScene);
 
+    // 名前に"wheel"を含むメッシュ(ホイール)を集めておき、走行中にタイヤの
+    // 回転アニメーションを付けられるようにする。見つからないモデルでも
+    // 単に何も回らないだけで安全。
+    this.wheels = [];
     this.model.traverse(obj => {
       if (obj.isMesh) {
         obj.castShadow = true;
         obj.receiveShadow = false;
       }
+      if (/wheel/i.test(obj.name)) this.wheels.push(obj);
     });
 
     this.group.add(this.model);
@@ -70,6 +76,10 @@ export class CarController {
 
     // スピードパッド(踏んでいる間だけ速度アップ)
     this.padBoostTimer = 0;
+
+    // ガードレールに衝突した位置(main.js側で火花エフェクトを出すのに使う。
+    // 衝突していないフレームはnull)
+    this.lastWallHit = null;
   }
 
   // ジャンプ台に触れた時にmain.jsから呼ぶ
@@ -109,12 +119,23 @@ export class CarController {
   }
 
   update(dt, track) {
+    this.lastWallHit = null;
     if (this.autoMode) {
       this.updateAuto(dt, track);
     } else {
       this.updateManual(dt, track);
     }
+    this.rotateWheels(dt);
     this.syncTransform();
+  }
+
+  // 速度に応じてホイールを回転させる(見た目上のタイヤ半径の近似値で計算)
+  rotateWheels(dt) {
+    if (this.wheels.length === 0) return;
+    const angularSpeed = this.speed / (WHEEL_RADIUS_BASE * this.worldScale);
+    for (const wheel of this.wheels) {
+      wheel.rotation.x += angularSpeed * dt;
+    }
   }
 
   updateAuto(dt, track) {
@@ -190,6 +211,8 @@ export class CarController {
       this.position.z = centerZ + wallHit.nz * bounceDist;
       const inward = Math.atan2(-wallHit.nx, -wallHit.nz);
       this.heading = smoothAngle(this.heading, inward, 6, dt);
+      // main.js側で衝突エフェクト(火花)を出すために、ぶつかった位置を記録しておく
+      this.lastWallHit = this.position.clone();
     }
 
     const { y: targetY, pitch } = sampleTrackHeight(track, this.position);
