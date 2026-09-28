@@ -22,8 +22,30 @@ const screens = {
   game: document.getElementById('game-screen'),
 };
 
+// 画面切り替えをふわっとしたフェードにする。display:noneのままopacityだけ
+// 変えても何も見えないので、表示する方は先にdisplay:flexにしてから次の
+// フレームでactiveを付け(フェードイン)、隠す方はactiveを外してすぐ操作
+// できないようにしつつ、トランジション時間ぶん待ってからdisplay:noneに
+// 戻す(フェードアウト)。2画面が同時に操作可能な状態にはならない。
+const SCREEN_TRANSITION_MS = 250;
 function showScreen(name) {
-  for (const key in screens) screens[key].classList.toggle('active', key === name);
+  for (const key in screens) {
+    const el = screens[key];
+    if (key === name) {
+      el.style.display = 'flex';
+      // display変更とactive付与を同じタイミングで行うとブラウザが
+      // トランジションだと認識してくれないことがあるため、間に強制リフローを
+      // 挟んで(rAFを待つよりも確実)、次のスタイル変更が確実にアニメーション
+      // として扱われるようにする
+      void el.offsetWidth;
+      el.classList.add('active');
+    } else {
+      el.classList.remove('active');
+      setTimeout(() => {
+        if (!el.classList.contains('active')) el.style.display = 'none';
+      }, SCREEN_TRANSITION_MS);
+    }
+  }
 }
 
 // ---------- ステージ管理 ----------
